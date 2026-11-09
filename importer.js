@@ -196,6 +196,6 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     extra.push({ b, kind: bogang ? '보강비' : exam ? '시험 감독' : '기타 수입', on: exam || bogang });
   }
   // 5) 엑셀 기간 안인데 엑셀에 짝이 없는 내 앱 기록 (현금·잘못 들어간 것 확인용)
-  const orphan = mine.filter(e => !used.has(e.id) && !e.canceled && e.d >= from && e.d <= to);
+  const orphan = mine.filter(e => !used.has(e.id) && !e.canceled && !e.fixed_id && e.d >= from && e.d <= to);
   return { missing, matched, settle, loose, salary, extra, cancel, dupBank, voided, fixedOut: fixedOut.filter(g => g.amt > 0), fixedTaken: taken.size, orphan };
 }

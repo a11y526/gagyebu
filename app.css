@@ -206,3 +206,5 @@ header .sub{margin-top:8px}
 .imp-bar span{flex:1;font-size:13px;color:var(--faint)}
 .imp-bar .sh-btn{margin:0}
 @media (max-width:700px){ .imp-bar{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px} }
+.chip.fxchip{background:#ECE9F7;color:#4B3F8F}
+.opts .addfx{background:none;border:1px dashed var(--line);color:var(--muted)}

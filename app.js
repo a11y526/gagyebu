@@ -25,7 +25,7 @@ const $ = id => document.getElementById(id);
 // ───────── 규칙 ─────────
 const FOOD = ['장보기','외식','배달','카페·간식'];
 const CATS = ['장보기','외식','배달','카페·간식','쇼핑','운동','문화·여가','기타','주거','통신','공과금','구독','교통','보험','이자','저축·투자'];
-const FIXED_OPTS = ['주거','통신','공과금','구독','교통','저축·투자'];
+const FIXED_OPTS = ['주거','통신','공과금','구독','교통','보험','이자','저축·투자'];
 const SPLIT = { solo:'혼자', together:'같이', half:'반반', treat:'상대 몫 대신' };
 // 2026-11-09부터 송금 없이 각자 40만 원: 고르는 건 혼자/같이만 (반반·대신은 예전 기록용)
 const SPLIT_PICK = ['solo', 'together'];
@@ -75,7 +75,7 @@ const man = n => { const v = n / 10000; return (Math.abs(v) >= 100 ? Math.round(
 const isFood = e => FOOD.includes(e.cat);
 const isJoint = e => e.split !== 'solo';
 function share(e, who){
-  if (e.canceled) return 0;
+  if (e.canceled || e.fixed_id) return 0;   // 고정비로 연결된 기록은 고정비 쪽에서만 셈
   if (e.split === 'solo' || e.split === 'together') return e.payer === who ? e.amt : 0;
   if (e.split === 'half')  return e.amt / 2;
   if (e.split === 'treat') return e.payer === who ? 0 : e.amt;
@@ -277,7 +277,8 @@ function render(){
 
 function rowHtml(e){
   const mine = share(e, me);
-  const payerChip = isJoint(e) ? `<span class="chip ${e.payer === me ? '' : 'gf'}">${esc(nm(e.payer))} 결제</span>` : '';
+  const fxName = e.fixed_id ? (fixed.find(f => f.id === e.fixed_id)?.name || '고정비') : '';
+  const payerChip = (fxName ? `<span class="chip fxchip">고정비 · ${esc(fxName)}</span>` : '') + (isJoint(e) ? `<span class="chip ${e.payer === me ? '' : 'gf'}">${esc(nm(e.payer))} 결제</span>` : '');
   return `<div class="it ${e.canceled ? 'canceled' : ''}" data-row="${e.id}">${dateBox(e.d)}
     <div><div class="p">${esc(e.place) || '<span style="color:var(--faint)">제목 없음</span>'}${e.memo ? '<span class="memo-dot" title="메모 있음"></span>' : ''}</div>
       <div class="chips"><span class="chip ${e.cat === '미분류' ? 'warn' : ''}">${e.cat}</span>${payerChip}${isJoint(e) ? `<span class="chip ${e.split}">${SPLIT[e.split]}</span>` : ''}${e.split === 'half' && e.settled ? '<span class="chip">정산 끝</span>' : ''}${e.canceled ? '<span class="chip treat">취소됨</span>' : ''}${dupIds.has(e.id) ? '<span class="chip warn">중복?</span>' : ''}${e.amt < 0 ? '<span class="chip">환불</span>' : ''}</div></div>
@@ -365,6 +366,8 @@ function sheetHtml(){
     ${prop('분류', opts('cat', FIXED_OPTS, o.cat))}
     ${prop('금액 변동', opts('vary', [false, true], o.vary, v => v ? '매달 바뀜' : '고정'))}
     ${prop('엑셀 이름', `<input class="txt" data-f="keys" maxlength="200" placeholder="예: 귀뚜라미, 아파트관리비" value="${esc(o.keys)}">`)}
+    <div class="sh-sec">쓴 기록에서 찾기</div>
+    <div id="fxHist">${o._hist ? fixedHistHtml(o) : '<div class="none">찾는 중…</div>'}</div>
     ${fixedPaid.filter(p => p.fixed_id === o.id).length ? prop('나간 돈', fixedPaid.filter(p => p.fixed_id === o.id).sort((a, b) => a.cycle_start < b.cycle_start ? 1 : -1).map(p => `<div class="paidline">${md(p.cycle_start).m}월 주기 · ${won(p.amt)}${p.paid_on ? ` (${md(p.paid_on).m}/${md(p.paid_on).d})` : ''}</div>`).join('')) : ''}
     <div class="sh-hr"></div>
     <textarea class="memo" data-f="memo" placeholder="메모" maxlength="2000">${esc(o.memo)}</textarea>`;
@@ -379,10 +382,72 @@ function sheetHtml(){
     ${o.split === 'half' ? prop('정산', opts('settled', [false, true], o.settled, v => v ? '끝남' : '아직')) : ''}
     ${joint && o.split !== 'together' ? prop('내 몫', `<span style="font-weight:700;padding:0 8px">${won(share(o, me))}</span>`) : ''}
     ${prop('상태', opts('canceled', [false, true], !!o.canceled, v => v ? '취소됨' : '결제됨'))}
-    ${fixedClash.has(o.id) ? `<p class="dupnote">고정비 '${esc(fixedClash.get(o.id))}'에 이미 들어가는 돈일 수 있어요. 고정비로 계산되고 있으면 이 기록은 [지우기] 하세요.</p>` : dupIds.has(o.id) ? `<p class="dupnote">같은 날 같은 금액 기록이 하나 더 있어요. 같은 결제면 하나를 [지우기] 하세요.${dupList(o)}</p>` : ''}
+    ${o.payer === me ? prop('고정비', `<div class="opts">${[['', '아님'], ...fixed.map(f => [f.id, f.name || '제목 없음'])].map(([id, n]) => `<button data-link-fixed="${id}" class="${(o.fixed_id || '') === id ? 'on' : ''}">${esc(n)}</button>`).join('')}<button data-link-fixed="new" class="addfx">＋ 새 고정비로</button></div>`) : ''}
+    ${o.fixed_id ? `<p class="hint">고정비 '${esc(fixed.find(f => f.id === o.fixed_id)?.name || '')}'로 계산돼요. 이 기록 금액은 지출에 따로 더하지 않아요.</p>` : ''}
+    ${!o.fixed_id && fixedClash.has(o.id) ? `<p class="dupnote">고정비 '${esc(fixedClash.get(o.id))}'에 이미 들어가는 돈일 수 있어요. 고정비로 계산되고 있으면 이 기록은 [지우기] 하세요.</p>` : dupIds.has(o.id) ? `<p class="dupnote">같은 날 같은 금액 기록이 하나 더 있어요. 같은 결제면 하나를 [지우기] 하세요.${dupList(o)}</p>` : ''}
     <div class="sh-hr"></div>
     <textarea class="memo" data-f="memo" placeholder="메모" maxlength="4000">${esc(o.memo)}</textarea>`;
 }
+// ───────── 쓴 기록 ↔ 고정비 연결 ─────────
+const nz2 = t => String(t || '').replace(/\s/g, '').toLowerCase();
+const fixedCycle = d => cycleStartOf(addDays(d, 3));   // 주기 시작 3일 전부터는 다음 주기
+function fixedHistHtml(f){
+  const keys = [f.name, ...String(f.keys || '').split(',')].map(nz2).filter(k => k.length >= 2);
+  const linked = f._hist.filter(e => e.fixed_id === f.id);
+  const like = f._hist.filter(e => !e.fixed_id && !e.canceled && e.amt > 0 && (
+      keys.some(k => nz2(e.place).includes(k)) || (e.cat === f.cat && f.amt > 0 && Math.abs(e.amt - f.amt) <= Math.max(500, f.amt * 0.1)))).slice(0, 20);
+  const row = (e, on) => `<div class="imp-row nock" style="grid-template-columns:46px 1fr auto auto">${dateBox(e.d)}<span class="p">${esc(e.place) || '제목 없음'}<small>${e.cat}</small></span><b>${won(e.amt)}</b>
+    <button class="mini ${on ? '' : 'on'}" data-hist-link="${e.id}" data-to="${on ? '' : f.id}">${on ? '해제' : '연결'}</button></div>`;
+  return (linked.length ? `<div class="hint">연결된 기록 ${linked.length}건</div><div class="imp">${linked.map(e => row(e, true)).join('')}</div>` : '')
+    + (like.length ? `<div class="hint" style="margin-top:10px">비슷한 기록 (이름이나 금액이 비슷해요)</div><div class="imp">${like.map(e => row(e, false)).join('')}</div>`
+                   : (linked.length ? '' : '<div class="none">비슷한 기록이 없어요</div>'));
+}
+async function loadFixedHist(f){
+  const { data } = await sb.from('gb_entries').select('id,d,place,amt,cat,canceled,fixed_id,payer')
+    .eq('payer', me).gte('d', addDays(todayStr(), -400)).order('d', { ascending: false }).limit(2000);
+  f._hist = data || [];
+  if (cur?.obj === f){ const box = $('fxHist'); if (box) box.innerHTML = fixedHistHtml(f); }
+}
+// 그 주기의 고정비 '나간 돈' = 연결된 기록 합계 (연결이 하나도 없으면 연결로 만든 기록은 지움)
+async function syncPaid(fid, cs){
+  const [y, m] = cs.split('-').map(Number);
+  const nextCs = ymd(new Date(y, m, 17));                 // 다음 주기 시작 (m은 1부터라 그대로 다음 달)
+  const from = addDays(cs, -3), to = addDays(nextCs, -4);  // fixedCycle(d) === cs 인 날짜 범위
+  const { data } = await sb.from('gb_entries').select('amt,d,canceled').eq('fixed_id', fid).gte('d', from).lte('d', to);
+  const rows = (data || []).filter(r => !r.canceled);
+  if (rows.length){
+    const amt = rows.reduce((a, r) => a + r.amt, 0), paid_on = rows.map(r => r.d).sort().pop();
+    await sb.from('gb_fixed_paid').upsert({ fixed_id: fid, owner: me, cycle_start: cs, amt, paid_on });
+  } else {
+    await sb.from('gb_fixed_paid').delete().eq('fixed_id', fid).eq('cycle_start', cs);
+  }
+}
+async function linkFixed(e, fid){
+  const before = e.fixed_id || null;
+  if (fid === 'new'){
+    const cat = FIXED_OPTS.includes(e.cat) ? e.cat : '공과금';
+    const { data, error } = await sb.from('gb_fixed').insert({ owner: me, name: (e.place || '새 고정비').slice(0, 40), amt: Math.max(0, e.amt), cat, keys: (e.place || '').slice(0, 200), sort: fixed.length + 1 }).select().single();
+    if (error){ toast('고정비를 만들지 못했어요'); return; }
+    fixed.push(data); fid = data.id;
+  }
+  fid = fid || null;
+  e.fixed_id = fid;
+  const { error } = await sb.from('gb_entries').update({ fixed_id: fid }).eq('id', e.id);
+  if (error){ e.fixed_id = before; toast('저장하지 못했어요'); return; }
+  // 가게 이름을 그 고정비의 '엑셀 이름'에 더해, 다음부터 엑셀·휴대폰 기록도 고정비로
+  if (fid && e.place && e.place.replace(/\s/g, '').length >= 2){
+    const f = fixed.find(x => x.id === fid);
+    const ks = String(f.keys || '').split(',').map(k => k.trim()).filter(Boolean);
+    if (!ks.some(k => nz2(e.place).includes(nz2(k)))){ f.keys = [...ks, e.place.slice(0, 40)].join(', ').slice(0, 200); await sb.from('gb_fixed').update({ keys: f.keys }).eq('id', fid); }
+  }
+  const cs = fixedCycle(e.d);
+  if (before) await syncPaid(before, cs);
+  if (fid) await syncPaid(fid, cs);
+  const { data: fp } = await sb.from('gb_fixed_paid').select('*').gte('cycle_start', cycleAt(cycOffset - 1).start).lte('cycle_start', cycleAt(cycOffset).start);
+  fixedPaid = fp || fixedPaid;
+  toast(fid ? `고정비 '${fixed.find(x => x.id === fid)?.name}'로 연결했어요` : '고정비 연결을 풀었어요');
+}
+
 function dupList(o){
   const others = entries.filter(e => e.id !== o.id && !e.canceled && e.payer === o.payer && e.d === o.d && e.amt === o.amt);
   return others.map(e => `<br>· ${esc(e.place) || '제목 없음'} (${e.cat}${e.source !== 'app' ? ', ' + ({ iphone:'아이폰', android:'갤럭시', import:'엑셀', notion:'노션' }[e.source] || e.source) : ''})`).join('');
@@ -459,6 +524,16 @@ $('sheetBody').addEventListener('click', async ev => {
   if (ev.target.closest('[data-and-perm]')){ AND.openListenerSettings(); return; }
   if (ev.target.closest('[data-and-update]')){ AND.checkUpdate(); return; }
   if (ev.target.closest('[data-copy]')){ await navigator.clipboard.writeText(cur.obj.key); toast('복사했어요'); return; }
+  const lf = ev.target.closest('[data-link-fixed]');
+  if (lf && cur.kind === 'row'){ await linkFixed(cur.obj, lf.dataset.linkFixed); $('sheetBody').innerHTML = sheetHtml(); growMemo(); render(); return; }
+  const hl = ev.target.closest('[data-hist-link]');
+  if (hl && cur.kind === 'fixed'){
+    const f = cur.obj, e = f._hist.find(x => x.id === hl.dataset.histLink); if (!e) return;
+    hl.disabled = true;
+    await linkFixed(e, hl.dataset.to || '');
+    const live = entries.find(x => x.id === e.id); if (live) live.fixed_id = e.fixed_id;
+    $('sheetBody').innerHTML = sheetHtml(); growMemo(); render(); return;
+  }
   const b = ev.target.closest('.opts button'); if (!b) return;
   const key = b.parentElement.dataset.opt; let v = b.dataset.v;
   if (v === 'true' || v === 'false') v = v === 'true';
@@ -624,7 +699,7 @@ document.addEventListener('click', async ev => {
   const exr = t.closest('[data-extra]');
   if (exr){ const o = extras.find(f => f.id === exr.dataset.extra); if (o) openSheet('extra', o); return; }
   const fx = t.closest('[data-fixed]');
-  if (fx){ const o = fixed.find(f => f.id === fx.dataset.fixed); if (o) openSheet('fixed', o); return; }
+  if (fx){ const o = fixed.find(f => f.id === fx.dataset.fixed); if (o){ openSheet('fixed', o); loadFixedHist(o); } return; }
   const it = t.closest('[data-row]');
   if (it){ const o = entries.find(r => r.id === it.dataset.row); if (o) openSheet('row', o); }
 });
