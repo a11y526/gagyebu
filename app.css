@@ -190,3 +190,7 @@ header .sub{margin-top:8px}
   #budCard .bud .row .t span.over{color:var(--red)!important}
   #extraCard .due .it:nth-child(n+4){display:none}
 }
+.androw{display:flex;align-items:center;gap:12px;min-height:48px;font-size:15px}
+.androw span{flex:1;color:var(--muted)}
+.androw b.ok{color:var(--green)}.androw b.over{color:var(--red)}
+.androw .sh-btn{margin:0}

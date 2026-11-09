@@ -297,6 +297,22 @@ function saveIncome(o){
   queueSave('gb_income', 'inc:' + o.cycle_start, { cycle_start: o.cycle_start, amt: o.amt, paid_on: o.paid_on || payday(o.cycle_start), memo: o.memo || '' });
 }
 
+// ───────── 갤럭시 앱 안에서만: 결제 알림 자동 기록 ─────────
+const AND = window.GagyebuAndroid || null;
+const APP_NAME = p => /samsungcard/.test(p) ? '삼성카드' : /bccard|paybooc/.test(p) ? 'BC카드' : /kbank/.test(p) ? '케이뱅크' : /messag|mms|sms/.test(p) ? '문자' : p.split('.').pop();
+function androidHtml(){
+  const linked = AND.hasKey(), on = AND.listenerOn();
+  let log = []; try { log = JSON.parse(AND.log()).slice(0, 8); } catch (e) {}
+  return `<div class="sh-sec">이 휴대폰 결제 자동 기록</div>
+    <div class="androw"><span>가계부 연결</span><b class="${linked ? 'ok' : 'over'}">${linked ? '연결됨' : '안 됨'}</b>${linked ? '' : '<button class="sh-btn dark" data-and-link>연결하기</button>'}</div>
+    <div class="androw"><span>알림 읽기</span><b class="${on ? 'ok' : 'over'}">${on ? '켜짐' : '꺼짐'}</b>${on ? '' : '<button class="sh-btn dark" data-and-perm>켜러 가기</button>'}</div>
+    <div class="hint">삼성카드·BC카드·케이뱅크 앱 알림과 카드 승인 문자를 읽어 바로 기록해요. 기록되면 알림에서 [같이 먹었어요]를 누를 수 있어요.</div>
+    ${log.length ? `<div class="sh-sec">최근 읽은 알림</div><div class="imp">${log.map(x => `<div class="imp-row nock" style="grid-template-columns:52px 1fr auto"><span class="p" style="font-size:13px">${new Date(x.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span><span class="p">${esc(x.place) || '가게 이름 못 읽음'}<small>${APP_NAME(x.app)} · ${esc(x.result)}${x.cancel ? ' · 취소' : ''}</small></span><b>${won(x.amt)}</b></div>`).join('')}</div>` : ''}
+    <div class="androw"><span>앱 버전 ${esc(AND.version())}</span><button class="sh-btn" data-and-update>업데이트 확인</button></div>`;
+}
+window.gbBack = () => { if (cur){ closeSheet(); return true; } return false; };
+window.gbAndroidChanged = () => { if (cur?.kind === 'settings') $('sheetBody').innerHTML = sheetHtml(); if (me) reloadSoon(); };
+
 // ───────── 노션식 상세 창 ─────────
 let cur = null;   // {kind:'row'|'fixed'|'salary'|'settings', obj, isNew}
 const fmt = n => (n || n === 0) && n !== '' ? Number(n).toLocaleString('ko-KR') : '';
@@ -306,8 +322,9 @@ const prop = (k, inner) => `<div class="prop"><span class="k">${k}</span><div>${
 function sheetHtml(){
   const { kind, obj: o } = cur;
   if (kind === 'settings') return `<input class="sh-title" value="${esc(nm(me))}" readonly>
-    <div class="sh-sec">휴대폰 자동 기록 열쇠</div>
-    <div class="hint">아이폰 단축어·갤럭시 MacroDroid에 넣는 열쇠예요. 새로 만들면 예전 열쇠는 더 이상 안 돼요.</div>
+    ${AND ? androidHtml() : ''}
+    <div class="sh-sec">${AND ? '아이폰 단축어 열쇠' : '휴대폰 자동 기록 열쇠'}</div>
+    <div class="hint">아이폰 단축어에 넣는 열쇠예요. 새로 만들면 예전 열쇠(갤럭시 앱 연결 포함)는 더 이상 안 돼요.</div>
     ${o.key ? `<div class="keybox" id="keyText">${o.key}</div><button class="sh-btn dark" data-copy>복사</button>` : ''}
     <button class="sh-btn" data-issue>${o.key ? '다시 만들기' : '열쇠 만들기'}</button>
     <div class="sh-sec">계정</div>
@@ -414,6 +431,13 @@ $('sheetBody').addEventListener('click', async ev => {
     if (error){ toast('열쇠를 만들지 못했어요'); return; }
     cur.obj.key = data; $('sheetBody').innerHTML = sheetHtml(); return;
   }
+  if (ev.target.closest('[data-and-link]')){
+    const { data, error } = await sb.rpc('gb_issue_phone_key');
+    if (error){ toast('연결하지 못했어요'); return; }
+    AND.setKey(data); $('sheetBody').innerHTML = sheetHtml(); toast('이 휴대폰을 연결했어요'); return;
+  }
+  if (ev.target.closest('[data-and-perm]')){ AND.openListenerSettings(); return; }
+  if (ev.target.closest('[data-and-update]')){ AND.checkUpdate(); return; }
   if (ev.target.closest('[data-copy]')){ await navigator.clipboard.writeText(cur.obj.key); toast('복사했어요'); return; }
   const b = ev.target.closest('.opts button'); if (!b) return;
   const key = b.parentElement.dataset.opt; let v = b.dataset.v;

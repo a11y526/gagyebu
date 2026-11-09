@@ -1,0 +1,46 @@
+# 갤럭시 앱(APK) 만들기: 'android-v숫자' 태그를 올리면 빌드해서 릴리스에 붙인다
+name: android
+on:
+  push:
+    tags: ['android-v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.10.2' }
+      - name: 서명 열쇠
+        env: { KS_B64: "${{ secrets.ANDROID_KEYSTORE_B64 }}" }
+        run: if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > android/release.p12; fi
+      - name: 빌드
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+        run: |
+          CODE=${GITHUB_REF_NAME#android-v}
+          case "$CODE" in ''|*[!0-9]*) CODE=${{ github.run_number }} ;; esac
+          mkdir -p out
+          if [ -f android/release.p12 ]; then
+            gradle -p android assembleRelease -PversionCode=$CODE --no-daemon
+            cp android/app/build/outputs/apk/release/app-release.apk out/gagyebu.apk
+          else
+            echo "서명 열쇠가 없어 시험용(debug)으로만 빌드해요"
+            gradle -p android assembleDebug -PversionCode=$CODE --no-daemon
+            cp android/app/build/outputs/apk/debug/app-debug.apk out/gagyebu.apk
+          fi
+      - name: 릴리스
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/gagyebu.apk
+          name: 갤럭시 앱 ${{ github.ref_name }}
+          body: 우리 가계부 갤럭시 앱. 휴대폰에서 gagyebu.apk를 눌러 설치하세요.
+      - name: 빌드 결과 보관
+        if: "!startsWith(github.ref, 'refs/tags/android-v')"
+        uses: actions/upload-artifact@v4
+        with: { name: gagyebu-apk, path: out/gagyebu.apk }

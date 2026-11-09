@@ -4,3 +4,10 @@ supabase/
 apple/
 *.app
 .DS_Store
+# 안드로이드: 서명 열쇠·빌드 결과는 올리지 않음
+android/release.p12
+android/keystore-password.txt
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
