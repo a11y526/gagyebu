@@ -128,7 +128,6 @@
   .tabs [data-tab=shared].on svg{stroke-width:2.6}
   .tabs .tabadd{display:flex;align-items:center;justify-content:center;color:var(--ink)}
   .tabs .tabadd svg{width:30px;height:30px}
-  .tabs [data-tab=mine] svg{display:none}
   .avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#8E5BD6;color:#fff;font-style:normal;font-weight:700;font-size:14px}
   .tabs [data-tab=mine].on .avatar{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--ink)}
   .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
