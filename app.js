@@ -591,8 +591,12 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && me
 $('loginForm').addEventListener('submit', async ev => {
   ev.preventDefault();
   $('loginErr').textContent = '';
-  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
-  if (error){ $('loginErr').textContent = '이메일 또는 비밀번호가 맞지 않아요'; return; }
+  // 아이디(이름) → 앱 안에서만 쓰는 로그인 주소, 비밀번호(숫자) → 'gagyebu:' + 숫자 (Supabase 최소 길이 맞춤)
+  const id = $('email').value.trim();
+  const email = id.includes('@') ? id : 'id-' + [...new TextEncoder().encode(id)].map(b => b.toString(16).padStart(2, '0')).join('') + '@gagyebu.app';
+  const password = id.includes('@') ? $('pw').value : 'gagyebu:' + $('pw').value.trim();
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error){ $('loginErr').textContent = '아이디 또는 비밀번호가 맞지 않아요'; return; }
   start();
 });
 
