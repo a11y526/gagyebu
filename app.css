@@ -152,3 +152,36 @@ header .sub{margin-top:8px}
   body.hidebars .tabs{transform:translateY(calc(100% + 30px + env(safe-area-inset-bottom)))}
 }
 @media (max-width:700px) and (prefers-reduced-motion:reduce){ header,.tabs{transition:none} }
+
+/* ───────── 넓은 화면(맥): 내 것 탭 배치 ─────────
+   1줄: 예산 요약(월급·부수입 + 남은 돈 3개)  2줄: 지출 구성 · 식비 달력 · 부수입  3줄: 고정비 · 혼자 쓴 기록 */
+@media (min-width:1100px){
+  .grid{align-items:start}
+  #paneMine{grid-template-columns:repeat(12,1fr)}
+  #budCard{order:1;grid-column:1/-1;display:grid;grid-template-columns:minmax(230px,1fr) 3fr;grid-template-areas:"ttl bud" "sal bud";column-gap:28px;row-gap:10px;align-items:start}
+  #budCard .ttl{grid-area:ttl;margin:0}
+  #budCard #salary{grid-area:sal}
+  #budCard .salary{margin-bottom:6px}
+  #budCard .bud{grid-area:bud;grid-template-columns:repeat(3,1fr);gap:16px;align-self:stretch}
+  #budCard .bud .row{background:var(--inset);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between;gap:12px}
+  #budCard .bud .row .t{flex-direction:column;align-items:flex-start;gap:4px;font-size:14px;color:var(--muted)}
+  #budCard .bud .row .t span:last-child{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  #budCard .bud .row .t span.over{color:var(--red)}
+  #donutCard{order:2;grid-column:span 4}
+  #calCard{order:3;grid-column:span 4}
+  #extraCard{order:4;grid-column:span 4}
+  #fixedCard{order:5;grid-column:span 5}
+  #soloCard{order:6;grid-column:span 7}
+  #donutCard .donut{padding:14px 0}
+  #donutCard .donut svg{width:170px;height:170px}
+  #donutCard .mid b{font-size:24px}
+  #donutCard .legend{gap:9px;margin-top:14px}
+  #donutCard .legend div{font-size:15px}
+  #fixedCard .due .it{padding:7px 4px;grid-template-columns:1fr auto}
+  #fixedCard .due .p{font-size:15px}
+  #fixedCard .due .a{font-size:15px}
+  #soloCard .list .it{padding:8px 4px}
+  #calCard .cal{gap:6px}
+  #calCard .cal .d{aspect-ratio:auto;height:34px}
+  .card{padding:22px}
+}

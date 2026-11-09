@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="app.css?v=7">
 </head>
 <body>
 
@@ -99,39 +99,39 @@
 
   <div class="grid tabpane" id="paneMine" hidden>
 
-    <section class="card c4">
+    <section id="donutCard" class="card c4">
       <div class="ttl">이번 주기 지출 <small>내 몫 기준</small></div>
       <div class="donut"><svg id="donut" width="220" height="220" viewBox="0 0 220 220"></svg><div class="mid"><b id="myTotal"></b><span>합계</span></div></div>
       <div class="legend" id="legend"></div>
     </section>
 
-    <section class="card c4">
+    <section id="budCard" class="card c4">
       <div class="ttl">예산</div>
       <div id="salary"></div>
       <div class="bud" id="bud"></div>
     </section>
 
-    <section class="card c4">
+    <section id="fixedCard" class="card c4">
       <div class="ttl">고정비 <span class="r"><small>매 주기 17일</small><button class="add" data-new="fixed"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
       <div class="due" id="fixed"></div>
       <div class="total" id="fixedTotal"></div>
     </section>
 
-    <section class="card c4">
+    <section id="calCard" class="card c4">
       <div class="ttl">이번 주기 식비 <small>내 몫</small></div>
       <div class="big" id="calTotal"></div>
       <span class="tag" id="calTag"></span>
       <div class="cal" id="cal"></div>
     </section>
 
-    <section class="card c4">
+    <section id="extraCard" class="card c4">
       <div class="ttl">부수입 <span class="r"><small id="extraYear"></small><button class="add" data-new="extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
       <div class="big" id="extraTotal"></div>
       <div class="kinds" id="extraKinds"></div>
       <div class="due" id="extra" style="margin-top:6px"></div>
     </section>
 
-    <section class="card c12">
+    <section id="soloCard" class="card c12">
       <div class="ttl">혼자 쓴 기록 <span class="r"><small id="soloCount"></small><button class="add" data-new="solo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
       <div class="list" id="list"></div>
       <button class="more" id="soloMore" hidden>더 보기</button>
@@ -146,6 +146,6 @@
   <div class="sh-body" id="sheetBody"></div>
 </aside>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=7"></script>
 </body>
 </html>
