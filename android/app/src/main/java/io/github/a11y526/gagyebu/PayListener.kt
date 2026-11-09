@@ -18,7 +18,7 @@ class PayListener : NotificationListenerService() {
         val raw = listOf(Notification.EXTRA_TITLE, Notification.EXTRA_TEXT, Notification.EXTRA_BIG_TEXT)
             .mapNotNull { ex.getCharSequence(it)?.toString() }.distinct().joinToString(" ")
         if (raw.isBlank()) return
-        val pay = PayParser.parse(pkg, raw) ?: return
+        val pay = PayParser.parse(pkg, raw, ex.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "") ?: return
         // 같은 알림이 다시 올라오면 한 번만 (10분)
         val sig = "$pkg|${pay.amt}|${pay.cancel}|${pay.place}"
         val prefs = getSharedPreferences("gb", MODE_PRIVATE)

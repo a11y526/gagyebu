@@ -299,14 +299,14 @@ function saveIncome(o){
 
 // ───────── 갤럭시 앱 안에서만: 결제 알림 자동 기록 ─────────
 const AND = window.GagyebuAndroid || null;
-const APP_NAME = p => /samsungcard/.test(p) ? '삼성카드' : /bccard|paybooc/.test(p) ? 'BC카드' : /kbank/.test(p) ? '케이뱅크' : /messag|mms|sms/.test(p) ? '문자' : p.split('.').pop();
+const APP_NAME = p => /samsungcard/.test(p) ? '삼성카드' : /bccard|paybooc/.test(p) ? 'BC카드' : /kbank/.test(p) ? '케이뱅크' : /spay|wallet/.test(p) ? '삼성페이' : /messag|mms|sms/.test(p) ? '문자' : p.split('.').pop();
 function androidHtml(){
   const linked = AND.hasKey(), on = AND.listenerOn();
   let log = []; try { log = JSON.parse(AND.log()).slice(0, 8); } catch (e) {}
   return `<div class="sh-sec">이 휴대폰 결제 자동 기록</div>
     <div class="androw"><span>가계부 연결</span><b class="${linked ? 'ok' : 'over'}">${linked ? '연결됨' : '안 됨'}</b>${linked ? '' : '<button class="sh-btn dark" data-and-link>연결하기</button>'}</div>
     <div class="androw"><span>알림 읽기</span><b class="${on ? 'ok' : 'over'}">${on ? '켜짐' : '꺼짐'}</b>${on ? '' : '<button class="sh-btn dark" data-and-perm>켜러 가기</button>'}</div>
-    <div class="hint">삼성카드·BC카드·케이뱅크 앱 알림과 카드 승인 문자를 읽어 바로 기록해요. 기록되면 알림에서 [같이 먹었어요]를 누를 수 있어요.</div>
+    <div class="hint">삼성카드·BC카드·케이뱅크·삼성페이 알림과 카드 승인 문자를 읽어 바로 기록해요. 기록되면 알림에서 [같이 먹었어요]를 누를 수 있어요.</div>
     ${log.length ? `<div class="sh-sec">최근 읽은 알림</div><div class="imp">${log.map(x => `<div class="imp-row nock" style="grid-template-columns:52px 1fr auto"><span class="p" style="font-size:13px">${new Date(x.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span><span class="p">${esc(x.place) || '가게 이름 못 읽음'}<small>${APP_NAME(x.app)} · ${esc(x.result)}${x.cancel ? ' · 취소' : ''}</small></span><b>${won(x.amt)}</b></div>`).join('')}</div>` : ''}
     <div class="androw"><span>앱 버전 ${esc(AND.version())}</span><button class="sh-btn" data-and-update>업데이트 확인</button></div>`;
 }
