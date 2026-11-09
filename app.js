@@ -3,6 +3,23 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { readBankFile, plan } from './importer.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ───────── 새 버전 자동 적용 ─────────
+// version.txt가 바뀌면(제가 고쳐 올리면) 주소에 버전을 붙여 다시 불러온다. 홈 화면 앱·갤럭시 앱은 새로고침 버튼이 없어서.
+const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || '0';
+async function checkVersion(force){
+  try {
+    const v = (await (await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })).text()).trim();
+    if (v && (force || v !== APP_VERSION)){
+      if (document.querySelector('#sheet.on .sh-body input:focus, #sheet.on .sh-body textarea:focus') && !force) return;   // 적는 중이면 다음에
+      sessionStorage.setItem('gb_updated', '1');
+      location.replace(location.pathname + '?v=' + v);
+    }
+  } catch (e) {}
+}
+setInterval(() => { if (!document.hidden) checkVersion(); }, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+if (sessionStorage.getItem('gb_updated')){ sessionStorage.removeItem('gb_updated'); setTimeout(() => toast('새 버전으로 바꿨어요'), 600); }
 const $ = id => document.getElementById(id);
 
 // ───────── 규칙 ─────────
@@ -327,6 +344,8 @@ function sheetHtml(){
     <div class="hint">아이폰 단축어에 넣는 열쇠예요. 새로 만들면 예전 열쇠(갤럭시 앱 연결 포함)는 더 이상 안 돼요.</div>
     ${o.key ? `<div class="keybox" id="keyText">${o.key}</div><button class="sh-btn dark" data-copy>복사</button>` : ''}
     <button class="sh-btn" data-issue>${o.key ? '다시 만들기' : '열쇠 만들기'}</button>
+    <div class="sh-sec">앱</div>
+    <button class="sh-btn" data-reload>새로고침</button>
     <div class="sh-sec">계정</div>
     <button class="sh-btn" data-logout>로그아웃</button>`;
   if (kind === 'salary'){ const { m, d } = md(o.cycle_start); return `<input class="sh-title" value="${m}월 주기 월급" readonly>
@@ -436,6 +455,7 @@ $('sheetBody').addEventListener('click', async ev => {
     if (error){ toast('연결하지 못했어요'); return; }
     AND.setKey(data); $('sheetBody').innerHTML = sheetHtml(); toast('이 휴대폰을 연결했어요'); return;
   }
+  if (ev.target.closest('[data-reload]')){ checkVersion(true); return; }
   if (ev.target.closest('[data-and-perm]')){ AND.openListenerSettings(); return; }
   if (ev.target.closest('[data-and-update]')){ AND.checkUpdate(); return; }
   if (ev.target.closest('[data-copy]')){ await navigator.clipboard.writeText(cur.obj.key); toast('복사했어요'); return; }
