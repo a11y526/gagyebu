@@ -186,14 +186,16 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     return { keys: [...new Set(xs.map(x => norm(x.place).slice(0, 6)))].filter(k => k.length >= 3), unit: xs.reduce((g, x) => gcd(g, x.amt), 0) };
   };
   const EXAM = learn('시험 감독'), BOGANG = learn('보강비');
-  for (const b of bank.filter(b => (b.type === '수입' || b.type === '이체') && b.amt >= 10000 && inRange(b))){
-    if (b.type === '수입' && (b.big === '금융수입' || (b.big === '급여' && b.amt >= 1000000))) continue;
+  for (const b of bank.filter(b => (b.type === '수입' || b.type === '이체') && b.amt > 0 && inRange(b))){
     if ((extras || []).some(x => x.amt === b.amt && dayGap(x.d, b.d) <= 3)) continue;
     const p = norm(b.place);
     // 서버에 저장한 '수입 알아보기 규칙'이 먼저 (이름이 들어가고, 단위가 있으면 그 배수일 때)
+    // 규칙에 맞으면 금액이 작아도(계정 쉐어 9,935원 등), 뱅크샐러드가 금융수입으로 나눠도(카드 캐시백) 넣는다
     const rule = (rules || []).find(r => p.includes(norm(r.pattern)) && (!r.unit || b.amt % r.unit === 0));
     if (rule){ extra.push({ b, kind: rule.kind, on: true }); continue; }
     if ((rules || []).some(r => r.unit && p.includes(norm(r.pattern)))) continue;   // 규칙 이름은 맞는데 배수가 아님 → 넣지 않음
+    if (b.amt < 10000) continue;
+    if (b.type === '수입' && (b.big === '금융수입' || (b.big === '급여' && b.amt >= 1000000))) continue;
     const bogang = BOGANG.keys.some(k => p.includes(k)) && BOGANG.unit > 0 && b.amt % BOGANG.unit === 0;
     const transit = /K-?패스|케이패스|대중교통캐시백|알뜰교통|기후동행/.test(p);   // 교통비 캐시백 (K-패스 적립금 등)
     const exam = !bogang && !transit && EXAM.keys.some(k => p.includes(k));
