@@ -145,3 +145,5 @@ header .sub{margin-top:8px}
   .brand{gap:6px}
   header .sub{margin-top:4px;font-size:13px}
 }
+.cyc .pill{white-space:nowrap}
+@media (max-width:700px){ .cyc .arrow{width:30px;height:36px} .cyc{gap:0} }
