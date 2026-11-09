@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F8F6F1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="우리 가계부">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<title>우리 가계부</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- 로그인 -->
+<div class="gate" id="gate" hidden>
+  <form class="card login" id="loginForm">
+    <h1>우리 가계부</h1>
+    <label>이메일<input type="email" id="email" autocomplete="username" required></label>
+    <label>비밀번호<input type="password" id="pw" autocomplete="current-password" required></label>
+    <p class="err" id="loginErr"></p>
+    <button class="btn" type="submit">로그인</button>
+  </form>
+</div>
+
+<!-- 가계부 멤버가 아님 -->
+<div class="gate" id="notMember" hidden>
+  <div class="card login">
+    <h1>우리 가계부</h1>
+    <p class="sub">이 계정은 가계부에 등록되지 않았어요.</p>
+    <button class="btn" data-logout>로그아웃</button>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <div>
+      <div class="cyc">
+        <button class="arrow" data-cyc="-1" aria-label="이전 주기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+        <span class="pill" id="cyclePill"></span>
+        <button class="arrow" data-cyc="1" aria-label="다음 주기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
+      </div>
+      <h1>우리 가계부</h1>
+      <p class="sub" id="cycleSub"></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn ghost" data-settings aria-label="설정">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1-3.6 4-5.4 7.5-5.4s6.5 1.8 7.5 5.4"/></svg><span id="meName"></span>
+      </button>
+      <button class="btn ghost" data-import>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>엑셀 맞춰 보기
+      </button>
+      <button class="btn" data-new="auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>새 기록
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist">
+    <button role="tab" data-tab="shared"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><path d="M15 14.6c2.6-.3 4.8 1.2 5.5 4.4"/></svg>같이 · 식비·디저트</button>
+    <button role="tab" data-tab="mine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span id="zoneMine"></span></button>
+  </nav>
+
+  <div class="grid tabpane" id="paneShared">
+
+
+    <section class="card c7" id="foodCard">
+      <div class="ttl">식비·디저트 <small id="foodCap"></small></div>
+      <div class="big" id="foodTotal"></div>
+      <div class="bar" style="height:14px"><i id="foodBar" style="background:var(--yellow)"></i></div>
+      <div class="pair" id="pair"></div>
+      <div id="next"></div>
+    </section>
+
+    <section class="card c5" id="dueCard">
+      <div class="ttl">정산 안 된 반반 <small id="dueCount"></small></div>
+      <div class="due" id="due"></div>
+      <div class="total" id="dueTotal"></div>
+    </section>
+
+    <section class="card c12">
+      <div class="ttl">같이 먹은 기록 <span class="r"><button class="add" data-new="together"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
+      <div class="list" id="joint"></div>
+    </section>
+
+  </div>
+
+  <div class="grid tabpane" id="paneMine" hidden>
+
+    <section class="card c4">
+      <div class="ttl">이번 주기 지출 <small>내 몫 기준</small></div>
+      <div class="donut"><svg id="donut" width="220" height="220" viewBox="0 0 220 220"></svg><div class="mid"><b id="myTotal"></b><span>합계</span></div></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="card c4">
+      <div class="ttl">예산</div>
+      <div id="salary"></div>
+      <div class="bud" id="bud"></div>
+    </section>
+
+    <section class="card c4">
+      <div class="ttl">고정비 <span class="r"><small>매 주기 17일</small><button class="add" data-new="fixed"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
+      <div class="due" id="fixed"></div>
+      <div class="total" id="fixedTotal"></div>
+    </section>
+
+    <section class="card c4">
+      <div class="ttl">이번 주기 식비 <small>내 몫</small></div>
+      <div class="big" id="calTotal"></div>
+      <span class="tag" id="calTag"></span>
+      <div class="cal" id="cal"></div>
+    </section>
+
+    <section class="card c4">
+      <div class="ttl">부수입 <span class="r"><small id="extraYear"></small><button class="add" data-new="extra"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
+      <div class="big" id="extraTotal"></div>
+      <div class="kinds" id="extraKinds"></div>
+      <div class="due" id="extra" style="margin-top:6px"></div>
+    </section>
+
+    <section class="card c12">
+      <div class="ttl">혼자 쓴 기록 <span class="r"><small id="soloCount"></small><button class="add" data-new="solo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>추가</button></span></div>
+      <div class="list" id="list"></div>
+      <button class="more" id="soloMore" hidden>더 보기</button>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-hidden="true">
+  <div class="sh-top"><button data-close>닫기</button><span class="saving" id="saving"></span><button class="del" data-del>지우기</button></div>
+  <div class="sh-body" id="sheetBody"></div>
+</aside>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

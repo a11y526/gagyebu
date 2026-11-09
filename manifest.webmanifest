@@ -1,0 +1,9 @@
+{
+  "name": "우리 가계부",
+  "short_name": "가계부",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F8F6F1",
+  "theme_color": "#F8F6F1",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}
