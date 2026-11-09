@@ -194,3 +194,9 @@ header .sub{margin-top:8px}
 .androw span{flex:1;color:var(--muted)}
 .androw b.ok{color:var(--green)}.androw b.over{color:var(--red)}
 .androw .sh-btn{margin:0}
+/* 엑셀 맞춰 보기: 파일 고르기 칸이 화면 밖으로 나가지 않게 */
+.filein{width:100%;max-width:100%;min-width:0;font-size:15px}
+.prop > div{min-width:0}
+@media (max-width:700px){
+  .filein{padding:12px;border:1px dashed var(--line);border-radius:12px;background:var(--inset)}
+}
