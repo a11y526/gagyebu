@@ -147,3 +147,9 @@ header .sub{margin-top:8px}
 }
 .cyc .pill{white-space:nowrap}
 @media (max-width:700px){ .cyc .arrow{width:30px;height:36px} .cyc{gap:0} }
+@media (max-width:700px){
+  header,.tabs{transition:transform .28s cubic-bezier(.2,.7,.2,1)}
+  body.hidebars header{transform:translateY(-110%)}
+  body.hidebars .tabs{transform:translateY(calc(100% + 30px + env(safe-area-inset-bottom)))}
+}
+@media (max-width:700px) and (prefers-reduced-motion:reduce){ header,.tabs{transition:none} }

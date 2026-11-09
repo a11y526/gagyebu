@@ -529,7 +529,7 @@ document.addEventListener('click', async ev => {
   }
   if (t.closest('#scrim')){ closeSheet(); return; }
   const tb = t.closest('[data-tab]');
-  if (tb){ tab = tb.dataset.tab; localStorage.setItem('gb_tab', tab); showTab(); scrollTo({ top: 0 }); return; }
+  if (tb){ tab = tb.dataset.tab; localStorage.setItem('gb_tab', tab); showTab(); scrollTo({ top: 0 }); document.body.classList.remove('hidebars'); return; }
   const cy = t.closest('[data-cyc]');
   if (cy){ cycOffset += +cy.dataset.cyc; soloShown = SOLO_PAGE; loadAll(); return; }
   const hb = t.closest('[data-half]');
@@ -586,6 +586,20 @@ document.addEventListener('click', async ev => {
   if (it){ const o = entries.find(r => r.id === it.dataset.row); if (o) openSheet('row', o); }
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && cur) closeSheet(); });
+// 휴대폰: 아래로 내리면 위 헤더·아래 탭바 숨김, 위로 올리면 다시 보임 (유튜브처럼)
+{
+  let lastY = scrollY, ticking = false;
+  addEventListener('scroll', () => {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(() => {
+      const y = scrollY, d = y - lastY;
+      if (y < 60 || d < -6) document.body.classList.remove('hidebars');
+      else if (d > 6) document.body.classList.add('hidebars');
+      if (Math.abs(d) > 6 || y < 60) lastY = y;
+      ticking = false;
+    });
+  }, { passive: true });
+}
 document.addEventListener('visibilitychange', () => { if (!document.hidden && me) reloadSoon(); });
 
 // ───────── 로그인 ─────────
