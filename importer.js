@@ -73,6 +73,7 @@ export function mapCat(big, small){
 const doubtful = (b, cat) => b.small === '결제/충전' || (b.big === '금융' && b.small === '증권/투자');
 const doubtNote = b => b.small === '결제/충전' ? '페이 충전 (실제 결제는 따로 잡힘)' : '투자 (지출 아님)';
 
+const ALL_IN_FROM = '2026-10-17';   // 이 주기부터 모르는 입금도 '!' 달아 부수입으로
 // 맞춰 보기 계획
 // entries: 내가 볼 수 있는 앱 기록, fixed: 내 고정비, income: 내 월급 기록 [{cycle_start, amt}]
 export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid: paidNow, income, extras, rules, from, to, cycleStartOf, cycleOf }){
@@ -186,6 +187,9 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     return { keys: [...new Set(xs.map(x => norm(x.place).slice(0, 6)))].filter(k => k.length >= 3), unit: xs.reduce((g, x) => gcd(g, x.amt), 0) };
   };
   const EXAM = learn('시험 감독'), BOGANG = learn('보강비');
+  // 상대 이름(전체 또는 '남*진'처럼 가운데를 가린 것)
+  const pnm = norm(partnerName || '');
+  const isPartner = place => { const q = norm(place); return pnm.length >= 2 && (q.includes(pnm) || (q.length === 3 && q[1] === '*' && q[2] === pnm.at(-1) && (pnm.length < 3 || q[0] === pnm[0]))); };
   for (const b of bank.filter(b => (b.type === '수입' || b.type === '이체') && b.amt > 0 && inRange(b))){
     if ((extras || []).some(x => x.amt === b.amt && dayGap(x.d, b.d) <= 3)) continue;
     const p = norm(b.place);
@@ -193,14 +197,18 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     // 규칙에 맞으면 금액이 작아도(계정 쉐어 9,935원 등), 뱅크샐러드가 금융수입으로 나눠도(카드 캐시백) 넣는다
     const rule = (rules || []).find(r => p.includes(norm(r.pattern)) && (!r.unit || b.amt % r.unit === 0));
     if (rule){ extra.push({ b, kind: rule.kind, on: true }); continue; }
-    if ((rules || []).some(r => r.unit && p.includes(norm(r.pattern)))) continue;   // 규칙 이름은 맞는데 배수가 아님 → 넣지 않음
-    if (b.amt < 10000) continue;
-    if (b.type === '수입' && (b.big === '금융수입' || (b.big === '급여' && b.amt >= 1000000))) continue;
+    if ((rules || []).some(r => r.unit && p.includes(norm(r.pattern)))){ if (b.d >= ALL_IN_FROM) extra.push({ b, kind: '기타 수입', on: true, unsure: true }); continue; }   // 규칙 이름은 맞는데 배수가 아님 → '!'
+    // 2026-11-09: 들어온 돈은 다 부수입으로(ALL_IN_FROM부터). 빼는 것: 월급, 내 계좌끼리 옮긴 돈, 상대와 주고받은 돈
+    if (b.type === '수입' && b.big === '급여' && b.amt >= 1000000) continue;
+    if (b.big === '내계좌이체' || b.small === '내계좌이체') continue;
+    if (isPartner(b.place)) continue;
     const bogang = BOGANG.keys.some(k => p.includes(k)) && BOGANG.unit > 0 && b.amt % BOGANG.unit === 0;
     const transit = /K-?패스|케이패스|대중교통캐시백|알뜰교통|기후동행/.test(p);   // 교통비 캐시백 (K-패스 적립금 등)
     const exam = !bogang && !transit && EXAM.keys.some(k => p.includes(k));
-    if (!exam && !bogang && !transit && (b.type === '이체' || !['급여','기타수입','사업수입','용돈'].includes(b.big))) continue;
-    extra.push({ b, kind: transit ? '교통비 캐시백' : bogang ? '보강비' : exam ? '시험 감독' : '기타 수입', on: exam || bogang || transit });
+    const known = exam || bogang || transit;
+    if (!known && (b.amt < 1000 || b.d < ALL_IN_FROM)) continue;   // 1원 계좌 인증·몇십 원 이자는 뺌. 모르는 돈은 2026-10-17 주기부터만
+    // 모르는 돈은 '!' 표시(unsure) — 나중에 빼거나 메모를 적으면 표시가 사라짐
+    extra.push({ b, kind: transit ? '교통비 캐시백' : bogang ? '보강비' : exam ? '시험 감독' : '기타 수입', on: true, unsure: !known });
   }
   // 5) 엑셀 기간 안인데 엑셀에 짝이 없는 내 앱 기록 (현금·잘못 들어간 것 확인용)
   const orphan = mine.filter(e => !used.has(e.id) && !e.canceled && !e.fixed_id && e.d >= from && e.d <= to);

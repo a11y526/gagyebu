@@ -254,9 +254,9 @@ function render(){
     const a = xg[cs] || [], open = cs === cyc.start ? !xClosed.has(cs) : xOpen.has(cs), { m } = md(cs);
     const kinds = ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'].map(k => { const b = a.filter(x => x.kind === k); return b.length ? `${k} ${won(sumOf(b))}` : ''; }).filter(Boolean).join(' · ');
     return `<button class="xcyc ${open ? 'open' : ''} ${cs === cyc.start ? 'now' : ''}" data-xcyc="${cs}">
-        <span class="xm">${m}월 주기</span><span class="xk">${a.length ? `${a.length}건 · ${kinds}` : '없음'}</span><b>${a.length ? '+' + won(sumOf(a)) : '0원'}</b><i>${open ? '−' : '+'}</i></button>`
+        <span class="xm">${m}월 주기</span><span class="xk">${a.length ? `${a.length}건 · ${kinds}` : '없음'}${a.some(x => x.unsure) ? ` · <span class="unsure-n">! ${a.filter(x => x.unsure).length}</span>` : ''}</span><b>${a.length ? '+' + won(sumOf(a)) : '0원'}</b><i>${open ? '−' : '+'}</i></button>`
       + (open ? a.map(x => `
-    <div class="it fx xitem" data-extra="${x.id}">${dateBox(x.d)}<div class="p">${esc(x.place) || '제목 없음'}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.kind}</small></div><div class="a" style="color:var(--green)">+${won(x.amt)}</div></div>`).join('') : '');
+    <div class="it fx xitem" data-extra="${x.id}">${dateBox(x.d)}<div class="p">${esc(x.place) || '제목 없음'}${x.unsure ? '<span class="unsure" title="무슨 돈인지 확인">!</span>' : ''}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.kind}</small></div><div class="a" style="color:var(--green)">+${won(x.amt)}</div></div>`).join('') : '');
   }).join('');
 
   // ── 나만: 식비 달력 + 지난 주기 같은 기간 비교
@@ -302,6 +302,7 @@ function rowHtml(e){
 const pending = new Map();   // id → {table, patch}
 let flushT;
 function queueSave(table, id, patch){
+  if (table === 'gb_extra'){ const x = extras.find(x => x.id === id); if (x?.unsure){ x.unsure = false; patch = { ...patch, unsure: false }; } }   // 고치면 '!' 지움
   const p = pending.get(id) || { table, patch: {} };
   Object.assign(p.patch, patch); pending.set(id, p);
   $('saving').textContent = '저장 중…';
@@ -584,7 +585,7 @@ function importHtml(){
     ${P.settle.length ? `<div class="imp">${P.settle.map(x => `<div class="imp-row nock">${dateBox(x.t.d)}<span class="p">${esc(x.e.place) || '제목 없음'}<small>${x.t.amt > 0 ? esc(nm(partner)) + ' → 나' : '나 → ' + esc(nm(partner))} 송금</small></span><b>${won(Math.abs(x.t.amt))}</b></div>`).join('')}</div>` : '<div class="none">없음</div>'}
     ${''/* 짝 없는 송금 목록은 반반 송금을 그만두면서 숨김 (2026-11-09) */}
     ${P.salary.length ? `<div class="sh-sec">월급</div><div class="imp">${P.salary.map((x, i) => `<label class="imp-row">${box('salary', i, x.on)}${dateBox(x.b.d)}<span class="p">${md(x.cs).m}월 주기 월급<small>${x.have != null ? '지금 ' + won(x.have) + ' → 바꿈' : '새로 넣음'}</small></span><b>${won(x.b.amt)}</b></label>`).join('')}</div>` : ''}
-    ${P.extra.length ? `<div class="sh-sec">월급 말고 들어온 돈</div><div class="imp">${P.extra.map((x, i) => `<label class="imp-row">${box('extra', i, x.on)}${dateBox(x.b.d)}<span class="p">${esc(x.b.place) || '내용 없음'}<small>${x.kind}</small></span><b style="color:var(--green)">+${won(x.b.amt)}</b></label>`).join('')}</div>` : ''}
+    ${P.extra.length ? `<div class="sh-sec">월급 말고 들어온 돈</div><div class="imp">${P.extra.map((x, i) => `<label class="imp-row">${box('extra', i, x.on)}${dateBox(x.b.d)}<span class="p">${esc(x.b.place) || '내용 없음'}${x.unsure ? '<span class="unsure">!</span>' : ''}<small>${x.kind}${x.unsure ? ' · 무슨 돈인지 모름' : ''}</small></span><b style="color:var(--green)">+${won(x.b.amt)}</b></label>`).join('')}</div>` : ''}
     ${P.orphan.length ? `<div class="sh-sec">엑셀에 없는 앱 기록 ${P.orphan.length}건 (현금이거나 잘못 들어간 것)</div><div class="imp">${P.orphan.map(e => `<div class="imp-row nock">${dateBox(e.d)}<span class="p">${esc(e.place) || '제목 없음'}<small>${e.cat}</small></span><b>${won(e.amt)}</b></div>`).join('')}</div>` : ''}
     <div class="imp-bar"><span>체크한 것만 가계부에 저장돼요</span><button class="sh-btn dark" data-imp-apply>선택한 것 반영 (${on}건)</button></div>`;
 }
@@ -625,7 +626,7 @@ async function importApply(btn){
   if (ids.length){ const { error } = await sb.from('gb_entries').update({ settled: true }).in('id', ids); if (error) errs.push(error); }
   const sal = P.salary.filter(x => x.on).map(x => ({ owner: me, cycle_start: x.cs, amt: x.b.amt, paid_on: x.b.d }));
   if (sal.length){ const { error } = await sb.from('gb_income').upsert(sal); if (error) errs.push(error); }
-  const exs = P.extra.filter(x => x.on).map(x => ({ owner: me, d: x.b.d, place: x.b.place.slice(0, 80), amt: x.b.amt, kind: x.kind, source: 'import' }));
+  const exs = P.extra.filter(x => x.on).map(x => ({ owner: me, d: x.b.d, place: x.b.place.slice(0, 80), amt: x.b.amt, kind: x.kind, unsure: !!x.unsure, source: 'import' }));
   if (exs.length){ const { error } = await sb.from('gb_extra').insert(exs); if (error) errs.push(error); }
   if (errs.length){ console.error(errs); toast('일부를 반영하지 못했어요'); }
   cur.obj.step = 'done';
