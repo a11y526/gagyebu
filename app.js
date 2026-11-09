@@ -601,8 +601,9 @@ async function importRun(){
     const { data: ent, error } = await sb.from('gb_entries').select('*').gte('d', addDays(from, -7)).lte('d', addDays(to, 7));
     if (error) throw error;
     const { data: exAll } = await sb.from('gb_extra').select('*');
+    const { data: rules } = await sb.from('gb_income_rules').select('*');
     const { data: fpAll } = await sb.from('gb_fixed_paid').select('*');
-    o.plan = plan({ bank, entries: ent, me, partner, partnerName: partner ? nm(partner) : '', fixed, fixedPaid: fpAll || [], income, extras: exAll || [], from, to, cycleStartOf: d => cycleStartOf(addDays(d, 5)), cycleOf: d => cycleStartOf(addDays(d, 3)) });   // 고정비: 주기 시작 3일 전부터는 다음 주기
+    o.plan = plan({ bank, entries: ent, me, partner, partnerName: partner ? nm(partner) : '', fixed, fixedPaid: fpAll || [], income, extras: exAll || [], rules: rules || [], from, to, cycleStartOf: d => cycleStartOf(addDays(d, 5)), cycleOf: d => cycleStartOf(addDays(d, 3)) });   // 고정비: 주기 시작 3일 전부터는 다음 주기
     o.rangeText = `${from} ~ ${to}`;
     o.step = 'review';
   } catch (e){

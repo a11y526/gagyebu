@@ -75,7 +75,7 @@ const doubtNote = b => b.small === '결제/충전' ? '페이 충전 (실제 결�
 
 // 맞춰 보기 계획
 // entries: 내가 볼 수 있는 앱 기록, fixed: 내 고정비, income: 내 월급 기록 [{cycle_start, amt}]
-export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid: paidNow, income, extras, from, to, cycleStartOf, cycleOf }){
+export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid: paidNow, income, extras, rules, from, to, cycleStartOf, cycleOf }){
   const inRange = b => b.d >= from && b.d <= to;
 
   // 0) 엑셀 안 정리
@@ -190,6 +190,10 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     if (b.type === '수입' && (b.big === '금융수입' || (b.big === '급여' && b.amt >= 1000000))) continue;
     if ((extras || []).some(x => x.amt === b.amt && dayGap(x.d, b.d) <= 3)) continue;
     const p = norm(b.place);
+    // 서버에 저장한 '수입 알아보기 규칙'이 먼저 (이름이 들어가고, 단위가 있으면 그 배수일 때)
+    const rule = (rules || []).find(r => p.includes(norm(r.pattern)) && (!r.unit || b.amt % r.unit === 0));
+    if (rule){ extra.push({ b, kind: rule.kind, on: true }); continue; }
+    if ((rules || []).some(r => r.unit && p.includes(norm(r.pattern)))) continue;   // 규칙 이름은 맞는데 배수가 아님 → 넣지 않음
     const bogang = BOGANG.keys.some(k => p.includes(k)) && BOGANG.unit > 0 && b.amt % BOGANG.unit === 0;
     const transit = /K-?패스|케이패스|대중교통캐시백|알뜰교통|기후동행/.test(p);   // 교통비 캐시백 (K-패스 적립금 등)
     const exam = !bogang && !transit && EXAM.keys.some(k => p.includes(k));
