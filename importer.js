@@ -63,8 +63,8 @@ export function mapCat(big, small){
   if (big === '패션/쇼핑') return '쇼핑';
   if (big === '온라인쇼핑') return ['서비스구독','앱스토어'].includes(small) ? '구독' : small === '결제/충전' ? '기타' : '쇼핑';
   if (big === '주거/통신') return small === '관리비' ? '주거' : small === '가스비' ? '공과금' : '통신';
-  if (big === '보험') return '보험·이자';
-  if (big === '금융') return ['보험', '이자/대출'].includes(small) ? '보험·이자' : small === '증권/투자' ? '저축·투자' : '기타';
+  if (big === '보험') return '보험';
+  if (big === '금융') return small === '보험' ? '보험' : small === '이자/대출' ? '이자' : small === '증권/투자' ? '저축·투자' : '기타';
   if (big === '미분류') return '미분류';
   return '기타';
 }
