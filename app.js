@@ -47,6 +47,7 @@ let partnerHidden = 0;    // 상대가 혼자 먹은 식비(합계만 받음)
 let cycOffset = 0;        // 0 = 이번 주기
 let soloShown = SOLO_PAGE;
 let dupIds = new Set();
+const xOpen = new Set(), xClosed = new Set();   // 부수입 주기 펼침 상태
 let fixedClash = new Map();   // 기록 id → 겹치는 고정비 이름
 
 // ───────── 날짜·주기 (17일 ~ 다음 달 16일) ─────────
@@ -244,8 +245,19 @@ function render(){
   $('extraTotal').innerHTML = `${won(sumOf(exCyc))} <span style="font-size:16px;color:var(--faint);font-weight:600">이번 주기</span>`;
   $('extraYear').textContent = `1년 ${man(sumOf(exYear))} · ${exYear.length}번`;
   $('extraKinds').innerHTML = ['시험 감독', '보강비', '기타 수입'].map(k => { const a = exYear.filter(x => x.kind === k); return a.length ? `<span class="kind"><b>${k}</b> ${won(sumOf(a))} · ${a.length}번</span>` : ''; }).join('');
-  $('extra').innerHTML = extras.filter(x => x.d <= cyc.end).slice(0, 6).map(x => `
-    <div class="it fx" data-extra="${x.id}">${dateBox(x.d)}<div class="p">${esc(x.place) || '제목 없음'}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.kind}</small></div><div class="a" style="color:var(--green)">+${won(x.amt)}</div></div>`).join('') || '<div class="none">기록 없음</div>';
+  // 주기별로 묶어서: 보고 있는 주기는 펼치고, 나머지는 눌러서 펼침
+  const xg = {};
+  for (const x of extras.filter(x => x.d <= cyc.end)) (xg[cycleStartOf(x.d)] = xg[cycleStartOf(x.d)] || []).push(x);
+  const xKeys = Object.keys(xg).sort().reverse();
+  if (!(cyc.start in xg)) xKeys.unshift(cyc.start);
+  $('extra').innerHTML = xKeys.slice(0, 6).map(cs => {
+    const a = xg[cs] || [], open = cs === cyc.start ? !xClosed.has(cs) : xOpen.has(cs), { m } = md(cs);
+    const kinds = ['시험 감독', '보강비', '기타 수입'].map(k => { const b = a.filter(x => x.kind === k); return b.length ? `${k} ${won(sumOf(b))}` : ''; }).filter(Boolean).join(' · ');
+    return `<button class="xcyc ${open ? 'open' : ''} ${cs === cyc.start ? 'now' : ''}" data-xcyc="${cs}">
+        <span class="xm">${m}월 주기</span><span class="xk">${a.length ? `${a.length}건 · ${kinds}` : '없음'}</span><b>${a.length ? '+' + won(sumOf(a)) : '0원'}</b><i>${open ? '−' : '+'}</i></button>`
+      + (open ? a.map(x => `
+    <div class="it fx xitem" data-extra="${x.id}">${dateBox(x.d)}<div class="p">${esc(x.place) || '제목 없음'}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.kind}</small></div><div class="a" style="color:var(--green)">+${won(x.amt)}</div></div>`).join('') : '');
+  }).join('');
 
   // ── 나만: 식비 달력 + 지난 주기 같은 기간 비교
   const byDay = {}; food.forEach(e => { const v = share(e, W); if (v) byDay[e.d] = (byDay[e.d] || 0) + v; });
@@ -646,6 +658,10 @@ document.addEventListener('click', async ev => {
     return;
   }
   if (t.closest('#scrim')){ closeSheet(); return; }
+  const xc = t.closest('[data-xcyc]');
+  if (xc){ const cs = xc.dataset.xcyc, now = cs === cycleAt(cycOffset).start;
+    if (now){ xClosed.has(cs) ? xClosed.delete(cs) : xClosed.add(cs); } else { xOpen.has(cs) ? xOpen.delete(cs) : xOpen.add(cs); }
+    render(); return; }
   const tb = t.closest('[data-tab]');
   if (tb){ tab = tb.dataset.tab; localStorage.setItem('gb_tab', tab); showTab(); scrollTo({ top: 0 }); document.body.classList.remove('hidebars'); return; }
   const cy = t.closest('[data-cyc]');

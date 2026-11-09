@@ -188,7 +188,6 @@ header .sub{margin-top:8px}
 @media (min-width:1100px){
   #budCard .bud .row .t span:last-child{color:var(--ink)!important}
   #budCard .bud .row .t span.over{color:var(--red)!important}
-  #extraCard .due .it:nth-child(n+4){display:none}
 }
 .androw{display:flex;align-items:center;gap:12px;min-height:48px;font-size:15px}
 .androw span{flex:1;color:var(--muted)}
@@ -208,3 +207,13 @@ header .sub{margin-top:8px}
 @media (max-width:700px){ .imp-bar{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px} }
 .chip.fxchip{background:#ECE9F7;color:#4B3F8F}
 .opts .addfx{background:none;border:1px dashed var(--line);color:var(--muted)}
+
+/* 부수입: 주기별 묶음 */
+.xcyc{display:grid;grid-template-columns:auto 1fr auto 18px;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 10px;border-radius:12px;min-height:46px;border-bottom:1px solid var(--line)}
+.xcyc:hover{background:#FAF9F6}
+.xcyc.now{background:var(--inset);border-bottom:0;margin-bottom:4px}
+.xcyc .xm{font-weight:700;font-size:15px}
+.xcyc .xk{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.xcyc b{color:var(--green);font-size:15px}
+.xcyc i{font-style:normal;color:var(--faint);font-weight:700;text-align:center}
+.xitem{padding-left:8px}
