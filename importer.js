@@ -63,12 +63,15 @@ export function mapCat(big, small){
   if (big === '패션/쇼핑') return '쇼핑';
   if (big === '온라인쇼핑') return ['서비스구독','앱스토어'].includes(small) ? '구독' : small === '결제/충전' ? '기타' : '쇼핑';
   if (big === '주거/통신') return small === '관리비' ? '주거' : small === '가스비' ? '공과금' : '통신';
+  if (big === '보험') return '보험·이자';
+  if (big === '금융') return ['보험', '이자/대출'].includes(small) ? '보험·이자' : small === '증권/투자' ? '저축·투자' : '기타';
   if (big === '미분류') return '미분류';
   return '기타';
 }
 // 처음부터 체크 안 하는 것: 고정비와 겹칠 수 있는 것, 충전·금융
-// 처음부터 체크 안 하는 것: 페이 충전(실제 결제는 따로 잡힘), 금융(수수료·증권·투자)
-const doubtful = (b, cat) => b.big === '금융' || b.small === '결제/충전';
+// 처음부터 체크 안 하는 것: 페이 충전(실제 결제는 따로 잡힘), 증권·투자(지출 아님). 보험·이자·세금·수수료는 진짜 지출이라 체크
+const doubtful = (b, cat) => b.small === '결제/충전' || (b.big === '금융' && b.small === '증권/투자');
+const doubtNote = b => b.small === '결제/충전' ? '페이 충전 (실제 결제는 따로 잡힘)' : '투자 (지출 아님)';
 
 // 맞춰 보기 계획
 // entries: 내가 볼 수 있는 앱 기록, fixed: 내 고정비, income: 내 월급 기록 [{cycle_start, amt}]
@@ -146,7 +149,7 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
       const orig = mine.find(e => !used.has(e.id) && !e.canceled && e.amt === -amt && e.d <= b.d && dayGap(e.d, b.d) <= 60);
       if (orig){ used.add(orig.id); cancel.push({ b, e: orig }); continue; }
     }
-    missing.push({ b, amt, cat, on: !doubtful(b, cat) && !fx, note: amt < 0 ? '환불' : fx ? `고정비 '${fx.name}'와 비슷` : doubtful(b, cat) ? '충전·금융' : '' });
+    missing.push({ b, amt, cat, on: !doubtful(b, cat) && !fx, note: amt < 0 ? '환불' : fx ? `고정비 '${fx.name}'와 비슷` : doubtful(b, cat) ? doubtNote(b) : '' });
   }
 
   // 2) 상대와 주고받은 송금 → 반반 '끝남'
