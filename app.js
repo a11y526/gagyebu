@@ -479,7 +479,7 @@ function importHtml(){
     ${P.salary.length ? `<div class="sh-sec">월급</div><div class="imp">${P.salary.map((x, i) => `<label class="imp-row">${box('salary', i, x.on)}${dateBox(x.b.d)}<span class="p">${md(x.cs).m}월 주기 월급<small>${x.have != null ? '지금 ' + won(x.have) + ' → 바꿈' : '새로 넣음'}</small></span><b>${won(x.b.amt)}</b></label>`).join('')}</div>` : ''}
     ${P.extra.length ? `<div class="sh-sec">월급 말고 들어온 돈</div><div class="imp">${P.extra.map((x, i) => `<label class="imp-row">${box('extra', i, x.on)}${dateBox(x.b.d)}<span class="p">${esc(x.b.place) || '내용 없음'}<small>${x.kind}</small></span><b style="color:var(--green)">+${won(x.b.amt)}</b></label>`).join('')}</div>` : ''}
     ${P.orphan.length ? `<div class="sh-sec">엑셀에 없는 앱 기록 ${P.orphan.length}건 (현금이거나 잘못 들어간 것)</div><div class="imp">${P.orphan.map(e => `<div class="imp-row nock">${dateBox(e.d)}<span class="p">${esc(e.place) || '제목 없음'}<small>${e.cat}</small></span><b>${won(e.amt)}</b></div>`).join('')}</div>` : ''}
-    <button class="sh-btn dark" data-imp-apply style="margin-top:22px">선택한 것 반영 (${on}건)</button>`;
+    <div class="imp-bar"><span>체크한 것만 가계부에 저장돼요</span><button class="sh-btn dark" data-imp-apply>선택한 것 반영 (${on}건)</button></div>`;
 }
 async function importRun(){
   const o = cur.obj, file = $('impFile')?.files?.[0], pw = $('impPw')?.value || '';

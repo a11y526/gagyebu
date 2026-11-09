@@ -200,3 +200,9 @@ header .sub{margin-top:8px}
 @media (max-width:700px){
   .filein{padding:12px;border:1px dashed var(--line);border-radius:12px;background:var(--inset)}
 }
+/* 엑셀 맞춰 보기: 저장 버튼은 창 아래에 늘 보이게 */
+.imp-bar{position:sticky;bottom:calc(-30px - env(safe-area-inset-bottom));margin:22px -30px calc(-30px - env(safe-area-inset-bottom));padding:14px 30px calc(14px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.imp-bar span{flex:1;font-size:13px;color:var(--faint)}
+.imp-bar .sh-btn{margin:0}
+@media (max-width:700px){ .imp-bar{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px} }
