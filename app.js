@@ -244,7 +244,7 @@ function render(){
   const sumOf = a => a.reduce((s, x) => s + x.amt, 0);
   $('extraTotal').innerHTML = `${won(sumOf(exCyc))} <span style="font-size:16px;color:var(--faint);font-weight:600">이번 주기</span>`;
   $('extraYear').textContent = `1년 ${man(sumOf(exYear))} · ${exYear.length}번`;
-  $('extraKinds').innerHTML = ['시험 감독', '보강비', '기타 수입'].map(k => { const a = exYear.filter(x => x.kind === k); return a.length ? `<span class="kind"><b>${k}</b> ${won(sumOf(a))} · ${a.length}번</span>` : ''; }).join('');
+  $('extraKinds').innerHTML = ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'].map(k => { const a = exYear.filter(x => x.kind === k); return a.length ? `<span class="kind"><b>${k}</b> ${won(sumOf(a))} · ${a.length}번</span>` : ''; }).join('');
   // 주기별로 묶어서: 보고 있는 주기는 펼치고, 나머지는 눌러서 펼침
   const xg = {};
   for (const x of extras.filter(x => x.d <= cyc.end)) (xg[cycleStartOf(x.d)] = xg[cycleStartOf(x.d)] || []).push(x);
@@ -252,7 +252,7 @@ function render(){
   if (!(cyc.start in xg)) xKeys.unshift(cyc.start);
   $('extra').innerHTML = xKeys.slice(0, 6).map(cs => {
     const a = xg[cs] || [], open = cs === cyc.start ? !xClosed.has(cs) : xOpen.has(cs), { m } = md(cs);
-    const kinds = ['시험 감독', '보강비', '기타 수입'].map(k => { const b = a.filter(x => x.kind === k); return b.length ? `${k} ${won(sumOf(b))}` : ''; }).filter(Boolean).join(' · ');
+    const kinds = ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'].map(k => { const b = a.filter(x => x.kind === k); return b.length ? `${k} ${won(sumOf(b))}` : ''; }).filter(Boolean).join(' · ');
     return `<button class="xcyc ${open ? 'open' : ''} ${cs === cyc.start ? 'now' : ''}" data-xcyc="${cs}">
         <span class="xm">${m}월 주기</span><span class="xk">${a.length ? `${a.length}건 · ${kinds}` : '없음'}</span><b>${a.length ? '+' + won(sumOf(a)) : '0원'}</b><i>${open ? '−' : '+'}</i></button>`
       + (open ? a.map(x => `
@@ -370,7 +370,7 @@ function sheetHtml(){
   if (kind === 'extra') return `<input class="sh-title" data-f="place" placeholder="어디서" maxlength="80" value="${esc(o.place)}">
     ${prop('날짜', `<input type="date" data-f="d" value="${o.d}">`)}
     ${prop('금액', `<input class="num" data-f="amt" inputmode="numeric" value="${fmt(o.amt)}">`)}
-    ${prop('종류', opts('kind', ['시험 감독', '보강비', '기타 수입'], o.kind))}
+    ${prop('종류', opts('kind', ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'], o.kind))}
     <div class="sh-hr"></div>
     <textarea class="memo" data-f="memo" placeholder="메모" maxlength="2000">${esc(o.memo)}</textarea>`;
   if (kind === 'fixed') return `<input class="sh-title" data-f="name" placeholder="제목 없음" maxlength="40" value="${esc(o.name)}">

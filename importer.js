@@ -191,9 +191,10 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     if ((extras || []).some(x => x.amt === b.amt && dayGap(x.d, b.d) <= 3)) continue;
     const p = norm(b.place);
     const bogang = BOGANG.keys.some(k => p.includes(k)) && BOGANG.unit > 0 && b.amt % BOGANG.unit === 0;
-    const exam = !bogang && EXAM.keys.some(k => p.includes(k));
-    if (!exam && !bogang && (b.type === '이체' || !['급여','기타수입','사업수입','용돈'].includes(b.big))) continue;
-    extra.push({ b, kind: bogang ? '보강비' : exam ? '시험 감독' : '기타 수입', on: exam || bogang });
+    const transit = /K-?패스|케이패스|대중교통캐시백|알뜰교통|기후동행/.test(p);   // 교통비 캐시백 (K-패스 적립금 등)
+    const exam = !bogang && !transit && EXAM.keys.some(k => p.includes(k));
+    if (!exam && !bogang && !transit && (b.type === '이체' || !['급여','기타수입','사업수입','용돈'].includes(b.big))) continue;
+    extra.push({ b, kind: transit ? '교통비 캐시백' : bogang ? '보강비' : exam ? '시험 감독' : '기타 수입', on: exam || bogang || transit });
   }
   // 5) 엑셀 기간 안인데 엑셀에 짝이 없는 내 앱 기록 (현금·잘못 들어간 것 확인용)
   const orphan = mine.filter(e => !used.has(e.id) && !e.canceled && !e.fixed_id && e.d >= from && e.d <= to);
