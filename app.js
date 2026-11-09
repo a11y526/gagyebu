@@ -126,6 +126,7 @@ function render(){
   $('cyclePill').textContent = `${sm}월 주기` + (cycOffset === 0 ? ` · ${left}일 남음` : cycOffset < 0 ? ' · 지난 주기' : ' · 다음 주기');
   $('cycleSub').textContent = `${sm}월 ${sd}일 – ${em}월 ${ed}일`;
   $('zoneMine').textContent = `${nm(W)} 것`;
+  $('meInitial').textContent = nm(W).slice(0, 1);
   showTab();
   $('meName').textContent = nm(W);
 

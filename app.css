@@ -109,3 +109,39 @@
   .tabs button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
   .tabs .long{display:inline}
 }
+
+/* ───────── 휴대폰: 유튜브식 떠 있는 유리 탭바 + 반투명 헤더 ───────── */
+.tabadd,.avatar{display:none}
+@media (max-width:700px){
+  .wrap{padding:0 14px calc(104px + env(safe-area-inset-bottom))}
+  header{position:sticky;top:0;z-index:7;margin:0 -14px 14px;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+         background:rgba(248,246,241,.72);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);
+         border-radius:0 0 24px 24px;box-shadow:0 6px 20px rgba(40,35,20,.07)}
+  .fab{display:none}
+  .tabs{left:22px;right:22px;bottom:calc(10px + env(safe-area-inset-bottom));padding:6px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.7);border-top-color:rgba(255,255,255,.7);
+        background:rgba(255,255,255,.66);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+        box-shadow:0 10px 32px rgba(30,25,10,.16),inset 0 1px 0 rgba(255,255,255,.8);align-items:center}
+  .tabs button{flex:1;flex-direction:row;min-height:50px;padding:0;border-radius:999px;color:var(--faint)}
+  .tabs button span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}   /* 글자는 화면 읽기용으로만 */
+  .tabs button svg{width:27px;height:27px}
+  .tabs button.on{color:var(--ink);background:rgba(0,0,0,.06)}
+  .tabs [data-tab=shared].on svg{stroke-width:2.6}
+  .tabs .tabadd{display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .tabs .tabadd svg{width:30px;height:30px}
+  .tabs [data-tab=mine] svg{display:none}
+  .avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#8E5BD6;color:#fff;font-style:normal;font-weight:700;font-size:14px}
+  .tabs [data-tab=mine].on .avatar{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--ink)}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+
+/* 제목 대신 아이콘 하나 */
+.brand{display:flex;align-items:center;gap:12px}
+.brand h1{line-height:0}
+.brand .cyc{margin:0}
+.logo{width:44px;height:44px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+header .sub{margin-top:8px}
+@media (max-width:700px){
+  .logo{width:34px;height:34px;border-radius:9px}
+  .brand{gap:6px}
+  header .sub{margin-top:4px;font-size:13px}
+}

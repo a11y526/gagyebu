@@ -43,12 +43,14 @@
 <div class="wrap" id="app" hidden>
   <header>
     <div>
-      <div class="cyc">
+      <div class="brand">
+        <h1><img class="logo" src="icon.png" alt="우리 가계부" width="40" height="40"></h1>
+        <div class="cyc">
         <button class="arrow" data-cyc="-1" aria-label="이전 주기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
         <span class="pill" id="cyclePill"></span>
         <button class="arrow" data-cyc="1" aria-label="다음 주기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
       </div>
-      <h1>우리 가계부</h1>
+      </div>
       <p class="sub" id="cycleSub"></p>
     </div>
     <div class="actions">
@@ -66,7 +68,8 @@
 
   <nav class="tabs" id="tabs" role="tablist">
     <button role="tab" data-tab="shared"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><path d="M15 14.6c2.6-.3 4.8 1.2 5.5 4.4"/></svg><span>같이<span class="long"> · 식비·디저트</span></span></button>
-    <button role="tab" data-tab="mine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span id="zoneMine"></span></button>
+    <button class="tabadd" data-new="auto" aria-label="새 기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg></button>
+    <button role="tab" data-tab="mine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><i class="avatar" id="meInitial" aria-hidden="true"></i><span id="zoneMine"></span></button>
   </nav>
 
   <button class="fab" data-new="auto" aria-label="새 기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
