@@ -1,5 +1,5 @@
 # 아이폰 단축어 '가계부 기록' 만들기 (예전 노션용 '카드 자동'+'지출입력'을 합쳐서 우리 가계부 서버로)
-# 묻는 것 없이 바로 올림: 카드 승인 문자 → 금액·가게 꺼내서 '미분류'로 기록 (분류는 앱에서)
+# 묻는 것 없이 바로 올림: 카드 승인 문자 → 금액·가게 꺼내서 기록. 분류는 서버가 같은 가게의 예전 분류로 (처음 가게면 '미분류')
 # 쓰는 법: python3 tools/iphone_shortcut.py <휴대폰 열쇠> [나올 파일]
 #   → 서명된 .shortcut 파일. 맥에서 열면 단축어 앱에 추가됨 (iCloud로 아이폰에도 감).
 # 열쇠는 단축어 파일 안에만 들어감. 저장소에 넣지 말 것.
@@ -17,7 +17,7 @@ def text(s): return {'Value': {'string': s}, 'WFSerializationType': 'WFTextToken
 def field(k, v, t=0): return {'WFItemType': t, 'WFKey': text(k), 'WFValue': v}
 
 def build(key):
-    m, first, num, pm, place, req, resp = (U() for _ in range(7))
+    m, first, num, pm, pfirst, place, req, resp = (U() for _ in range(8))
     inp = {'Type': 'ExtensionInput'}
     def stop_if(word):
         g = U()
@@ -32,9 +32,11 @@ def build(key):
         act('text.match', UUID=m, WFMatchTextPattern=r'[0-9,]+(?=원)|^[0-9]+$', ShowWhenRun=False, text=tok(inp)),
         act('getitemfromlist', UUID=first, WFInput=out(m, '일치')),
         act('text.replace', UUID=num, WFReplaceTextFind=',', WFInput=tok({'OutputUUID': first, 'Type': 'ActionOutput', 'OutputName': '목록의 항목'})),
-        # 가게: 시각(14:22) 바로 뒤 한 줄
-        act('text.match', UUID=pm, WFMatchTextPattern=r'(?<=[0-9]:[0-9]{2}\s)[^\n]+', ShowWhenRun=False, text=tok(inp)),
-        act('getitemfromlist', UUID=place, WFInput=out(pm, '일치')),
+        # 가게: 시각 뒤 한 줄 (신한은 '(금액)7,200원 ' 다음)
+        #   삼성 '10/08 16:49 코레일유통' · BC '11/07 13:24⏎맥도날드구산점' · 신한 '11/08 13:12 (금액)14,000원 또순이집'
+        act('text.match', UUID=pm, WFMatchTextPattern=r'[0-9]{1,2}:[0-9]{2}\s+(?:\(금액\)[0-9,]+원\s*)?([^\n]+)', ShowWhenRun=False, text=tok(inp)),
+        act('getitemfromlist', UUID=pfirst, WFInput=out(pm, '일치')),
+        act('text.match.getgroup', UUID=place, WFGetGroupType='Group At Index', WFGroupIndex=1, matches=out(pfirst, '목록의 항목')),
         act('downloadurl', UUID=req, WFURL=URL, WFHTTPMethod='POST', ShowHeaders=True, WFHTTPBodyType='JSON',
             WFHTTPHeaders={'Value': {'WFDictionaryFieldValueItems': [
                 field('apikey', text(PUB)), field('Authorization', text('Bearer ' + PUB)), field('Content-Type', text('application/json'))]},
@@ -42,7 +44,7 @@ def build(key):
             WFJSONValues={'Value': {'WFDictionaryFieldValueItems': [
                 field('p_key', text(key)),
                 field('p_amt', tok({'OutputUUID': num, 'Type': 'ActionOutput', 'OutputName': '업데이트된 텍스트'}), 3),
-                field('p_place', tok({'OutputUUID': place, 'Type': 'ActionOutput', 'OutputName': '목록의 항목'})),
+                field('p_place', tok({'OutputUUID': place, 'Type': 'ActionOutput', 'OutputName': '그룹'})),
                 field('p_split', text('solo')),
                 field('p_source', text('iphone'))]},
                 'WFSerializationType': 'WFDictionaryFieldValue'}),
