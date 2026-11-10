@@ -123,6 +123,32 @@ let reloadT;
 const reloadSoon = () => { clearTimeout(reloadT); reloadT = setTimeout(() => { if (!cur) loadAll(); }, 500); };
 
 // ───────── 그리기 ─────────
+// ── 부수입 공통
+const X_KINDS = ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'], X_SHOW = 4;
+const sumOf = a => a.reduce((s, x) => s + x.amt, 0);
+const xItem = x => `
+    <div class="it fx xitem" data-extra="${x.id}">${dateBox(x.d)}<div class="p">${esc(x.place) || '제목 없음'}${x.unsure ? '<span class="unsure" title="무슨 돈인지 확인">!</span>' : ''}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.kind}</small></div><div class="a" style="color:var(--green)">+${won(x.amt)}</div></div>`;
+// 전체 보기 창: 주기별로 묶어서, 보고 있는 주기는 펼치고 나머지는 눌러서 펼침
+function extraAllHtml(){
+  const cyc = cycleAt(cycOffset), xg = {};
+  const exYear = extras.filter(x => x.d > addDays(cyc.end, -365) && x.d <= cyc.end);
+  for (const x of extras.filter(x => x.d <= cyc.end)) (xg[cycleStartOf(x.d)] = xg[cycleStartOf(x.d)] || []).push(x);
+  const keys = Object.keys(xg).sort().reverse();
+  if (!(cyc.start in xg)) keys.unshift(cyc.start);
+  const kinds = X_KINDS.map(k => { const a = exYear.filter(x => x.kind === k);
+    return `<div class="kt ${a.length ? '' : 'zero'}"><span>${k}</span><b>${a.length ? won(sumOf(a)) : '0원'}</b><small>${a.length}번</small></div>`; }).join('');
+  return `<input class="sh-title" value="부수입" readonly>
+    <div class="xsum"><b>${won(sumOf(exYear))}</b><span>최근 1년 · ${exYear.length}번</span></div>
+    <div class="kgrid">${kinds}</div>
+    <div class="sh-sec">주기별</div>
+    <div class="due">${keys.map(cs => {
+      const a = (xg[cs] || []).sort((p, q) => q.d.localeCompare(p.d)), open = cs === cyc.start ? !xClosed.has(cs) : xOpen.has(cs), { m } = md(cs), un = a.filter(x => x.unsure).length;
+      return `<button class="xcyc ${open ? 'open' : ''} ${cs === cyc.start ? 'now' : ''}" data-xcyc="${cs}">
+        <span class="xm">${m}월 주기</span><span class="xk">${a.length ? `${a.length}건` : '없음'}${un ? ` · <span class="unsure-n">! ${un}</span>` : ''}</span><b>${a.length ? '+' + won(sumOf(a)) : '0원'}</b><i>${open ? '−' : '+'}</i></button>`
+        + (open ? a.map(xItem).join('') : '');
+    }).join('')}</div>`;
+}
+
 function render(){
   const W = me, O = partner;
   const cyc = cycleAt(cycOffset), prev = cycleAt(cycOffset - 1);
@@ -145,7 +171,6 @@ function render(){
   $('cycleSub').textContent = `${sm}월 ${sd}일 – ${em}월 ${ed}일`;
   $('zoneMine').textContent = `${nm(W)} 것`;
   showTab();
-  $('meName').textContent = nm(W);
 
   // ── 같이: 식비판
   const lim = { [W]: members[W].food_limit, ...(O ? { [O]: members[O].food_limit } : {}) };
@@ -238,26 +263,15 @@ function render(){
     <div class="it fx" data-fixed="${x.id}" style="grid-template-columns:1fr auto"><div class="p">${esc(x.name) || '제목 없음'}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.cat}${x.vary ? ' · 변동' : ''}${paidOf(x, cyc.start) ? ` · <span class="ok">${paidOf(x, cyc.start).paid_on ? md(paidOf(x, cyc.start).paid_on).m + '/' + md(paidOf(x, cyc.start).paid_on).d + ' ' : ''}나감</span>` : ' · 예상'}</small></div><div class="a">${won(fixedAmt(x, cyc.start))}</div></div>`).join('') : '<div class="none">고정비 없음</div>';
   $('fixedTotal').innerHTML = `<span>합계${saveSum ? ` · 저축 ${man(saveSum)} 별도` : ''}</span><b>${won(fixedSum)}</b>`;
 
-  // ── 나만: 시험 감독 (월급과 따로)
-  const exCyc = extras.filter(x => x.d >= cyc.start && x.d <= cyc.end);
+  // ── 나만: 부수입 (월급과 따로) — 카드엔 요약과 이번 주기 몇 건만, 나머지는 '전체 보기' 창에서
+  const exCyc = extras.filter(x => x.d >= cyc.start && x.d <= cyc.end).sort((a, b) => b.d.localeCompare(a.d));
   const exYear = extras.filter(x => x.d > addDays(cyc.end, -365) && x.d <= cyc.end);
-  const sumOf = a => a.reduce((s, x) => s + x.amt, 0);
-  $('extraTotal').innerHTML = `${won(sumOf(exCyc))} <span style="font-size:16px;color:var(--faint);font-weight:600">이번 주기</span>`;
-  $('extraYear').textContent = `1년 ${man(sumOf(exYear))} · ${exYear.length}번`;
-  $('extraKinds').innerHTML = ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'].map(k => { const a = exYear.filter(x => x.kind === k); return a.length ? `<span class="kind"><b>${k}</b> ${won(sumOf(a))} · ${a.length}번</span>` : ''; }).join('');
-  // 주기별로 묶어서: 보고 있는 주기는 펼치고, 나머지는 눌러서 펼침
-  const xg = {};
-  for (const x of extras.filter(x => x.d <= cyc.end)) (xg[cycleStartOf(x.d)] = xg[cycleStartOf(x.d)] || []).push(x);
-  const xKeys = Object.keys(xg).sort().reverse();
-  if (!(cyc.start in xg)) xKeys.unshift(cyc.start);
-  $('extra').innerHTML = xKeys.slice(0, 6).map(cs => {
-    const a = xg[cs] || [], open = cs === cyc.start ? !xClosed.has(cs) : xOpen.has(cs), { m } = md(cs);
-    const kinds = ['시험 감독', '보강비', '교통비 캐시백', '기타 수입'].map(k => { const b = a.filter(x => x.kind === k); return b.length ? `${k} ${won(sumOf(b))}` : ''; }).filter(Boolean).join(' · ');
-    return `<button class="xcyc ${open ? 'open' : ''} ${cs === cyc.start ? 'now' : ''}" data-xcyc="${cs}">
-        <span class="xm">${m}월 주기</span><span class="xk">${a.length ? `${a.length}건 · ${kinds}` : '없음'}${a.some(x => x.unsure) ? ` · <span class="unsure-n">! ${a.filter(x => x.unsure).length}</span>` : ''}</span><b>${a.length ? '+' + won(sumOf(a)) : '0원'}</b><i>${open ? '−' : '+'}</i></button>`
-      + (open ? a.map(x => `
-    <div class="it fx xitem" data-extra="${x.id}">${dateBox(x.d)}<div class="p">${esc(x.place) || '제목 없음'}${x.unsure ? '<span class="unsure" title="무슨 돈인지 확인">!</span>' : ''}${x.memo ? '<span class="memo-dot"></span>' : ''}<small>${x.kind}</small></div><div class="a" style="color:var(--green)">+${won(x.amt)}</div></div>`).join('') : '');
-  }).join('');
+  $('extraTotal').innerHTML = `${won(sumOf(exCyc))} <span style="font-size:16px;color:var(--faint);font-weight:600">이번 주기${exCyc.length ? ` · ${exCyc.length}건` : ''}</span>`;
+  $('extraKinds').innerHTML = X_KINDS.map(k => { const a = exYear.filter(x => x.kind === k);
+    return `<div class="kt ${a.length ? '' : 'zero'}"><span>${k}</span><b>${a.length ? man(sumOf(a)) : '0원'}</b><small>1년 ${a.length}번</small></div>`; }).join('');
+  $('extra').innerHTML = exCyc.length ? exCyc.slice(0, X_SHOW).map(xItem).join('') : '<div class="xempty">이번 주기엔 아직 없어요</div>';
+  const more = exCyc.length - X_SHOW;
+  $('extraMore').innerHTML = `<button class="xmore" data-extra-all>${more > 0 ? `${more}건 더 · ` : ''}전체 보기 <small>1년 ${man(sumOf(exYear))} · ${exYear.length}번</small><i>›</i></button>`;
 
   // ── 나만: 식비 달력 + 지난 주기 같은 기간 비교
   const byDay = {}; food.forEach(e => { const v = share(e, W); if (v) byDay[e.d] = (byDay[e.d] || 0) + v; });
@@ -368,6 +382,7 @@ function sheetHtml(){
     <div class="sh-hr"></div>
     <textarea class="memo" data-f="memo" placeholder="메모" maxlength="2000">${esc(o.memo)}</textarea>`; }
   if (kind === 'import') return importHtml();
+  if (kind === 'extraAll') return extraAllHtml();
   if (kind === 'extra') return `<input class="sh-title" data-f="place" placeholder="어디서" maxlength="80" value="${esc(o.place)}">
     ${prop('날짜', `<input type="date" data-f="d" value="${o.d}">`)}
     ${prop('금액', `<input class="num" data-f="amt" inputmode="numeric" value="${fmt(o.amt)}">`)}
@@ -487,6 +502,7 @@ async function closeSheet(){
     if (c.kind === 'extra' && !o.place && !o.amt && !o.memo){ extras = extras.filter(f => f !== o); await sb.from('gb_extra').delete().eq('id', o.id); }
   }
   render();
+  if (c.back) openSheet(c.back, {});
 }
 function growMemo(){ const m = $('sheetBody').querySelector('.memo'); if (m){ m.style.height = 'auto'; m.style.height = Math.max(180, m.scrollHeight) + 'px'; } }
 const tableOf = k => k === 'fixed' ? 'gb_fixed' : k === 'extra' ? 'gb_extra' : 'gb_entries';
@@ -647,6 +663,14 @@ document.addEventListener('click', async ev => {
   const t = ev.target;
   if (t.closest('[data-logout]')){ await sb.auth.signOut(); location.reload(); return; }
   if (t.closest('#sheet')){
+    if (cur?.kind === 'extraAll'){   // 부수입 전체 보기 창: 주기 펼치기, 항목 열기(닫으면 이 창으로 돌아옴)
+      const xc = t.closest('[data-xcyc]');
+      if (xc){ const cs = xc.dataset.xcyc, now = cs === cycleAt(cycOffset).start;
+        if (now){ xClosed.has(cs) ? xClosed.delete(cs) : xClosed.add(cs); } else { xOpen.has(cs) ? xOpen.delete(cs) : xOpen.add(cs); }
+        $('sheetBody').innerHTML = extraAllHtml(); return; }
+      const exr = t.closest('[data-extra]');
+      if (exr){ const o = extras.find(f => f.id === exr.dataset.extra); if (o){ openSheet('extra', o); cur.back = 'extraAll'; } return; }
+    }
     if (t.closest('[data-close]')) closeSheet();
     else if (t.closest('[data-del]') && cur){
       const c = cur, table = tableOf(c.kind);
@@ -660,10 +684,7 @@ document.addEventListener('click', async ev => {
     return;
   }
   if (t.closest('#scrim')){ closeSheet(); return; }
-  const xc = t.closest('[data-xcyc]');
-  if (xc){ const cs = xc.dataset.xcyc, now = cs === cycleAt(cycOffset).start;
-    if (now){ xClosed.has(cs) ? xClosed.delete(cs) : xClosed.add(cs); } else { xOpen.has(cs) ? xOpen.delete(cs) : xOpen.add(cs); }
-    render(); return; }
+  if (t.closest('[data-extra-all]')){ openSheet('extraAll', {}); return; }
   const tb = t.closest('[data-tab]');
   if (tb){ tab = tb.dataset.tab; localStorage.setItem('gb_tab', tab); showTab(); scrollTo({ top: 0 }); document.body.classList.remove('hidebars'); return; }
   const cy = t.closest('[data-cyc]');

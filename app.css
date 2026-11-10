@@ -219,3 +219,19 @@ header .sub{margin-top:8px}
 .xitem{padding-left:8px}
 .unsure{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#e8833a;color:#fff;font-size:11px;font-weight:800;margin-left:6px;vertical-align:middle}
 .unsure-n{color:#c8662a;font-weight:700}
+
+/* 부수입: 종류별 같은 크기 칸 + 전체 보기 */
+.kgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.kt{background:var(--inset);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kt span{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kt b{font-size:17px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.kt small{font-size:12px;color:var(--faint)}
+.kt.zero b{color:var(--faint);font-weight:700}
+.xempty{padding:14px 4px;font-size:14px;color:var(--faint)}
+.xmore{display:flex;align-items:center;gap:6px;width:100%;margin-top:8px;padding:12px 12px;border-radius:12px;font-size:14px;font-weight:700;color:var(--ink);text-align:left}
+.xmore:hover{background:#FAF9F6}
+.xmore small{flex:1;font-size:12px;font-weight:500;color:var(--faint);text-align:right}
+.xmore i{font-style:normal;color:var(--faint);font-size:18px;line-height:1}
+.xsum{display:flex;align-items:baseline;gap:10px;margin:6px 0 2px}
+.xsum b{font-size:28px;font-weight:800;letter-spacing:-.02em}
+.xsum span{font-size:14px;color:var(--faint)}
