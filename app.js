@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm';
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
-import { readBankFile, plan } from './importer.js';
+import { readBankFile, plan, isPartnerName, matchXfers } from './importer.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -47,6 +47,7 @@ let partnerHidden = 0;    // 상대가 혼자 먹은 식비(합계만 받음)
 let cycOffset = 0;        // 0 = 이번 주기
 let soloShown = SOLO_PAGE;
 let dupIds = new Set();
+let xferOff = new Set();   // 같이 쓴 것(식비 말고) 내 몫으로 상대에게 보낸 돈 → 지출 아님
 const xOpen = new Set(), xClosed = new Set();   // 부수입 주기 펼침 상태
 let fixedClash = new Map();   // 기록 id → 겹치는 고정비 이름
 
@@ -75,8 +76,10 @@ const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
 const man = n => { const v = n / 10000; return (Math.abs(v) >= 100 ? Math.round(v) : Number.isInteger(v) ? v : v.toFixed(1)) + '만 원'; };
 const isFood = e => FOOD.includes(e.cat);
 const isJoint = e => e.split !== 'solo';
+const showShare = e => isJoint(e) && (e.split !== 'together' || !isFood(e));   // '내 몫'을 따로 보여 줄 기록
 function share(e, who){
-  if (e.canceled || e.fixed_id) return 0;   // 고정비로 연결된 기록은 고정비 쪽에서만 셈
+  if (e.canceled || e.fixed_id || xferOff.has(e.id)) return 0;   // 고정비로 연결된 기록은 고정비 쪽에서만 셈
+  if (e.split === 'together' && !isFood(e)) return e.amt / 2;   // 식비 말고 같이 쓴 것은 둘이 반씩 (2026-11-21)
   if (e.split === 'solo' || e.split === 'together') return e.payer === who ? e.amt : 0;
   if (e.split === 'half')  return e.amt / 2;
   if (e.split === 'treat') return e.payer === who ? 0 : e.amt;
@@ -155,6 +158,9 @@ function render(){
   const today = todayStr();
   const inCyc = e => e.d >= cyc.start && e.d <= cyc.end;
   const rows = [...entries.filter(inCyc), ...fixedRows(cyc.start)];
+  // 상대에게 보낸 돈(내 기록, 내용에 상대 이름) 중 상대가 결제한 같이 쓴 것 내 몫을 갚은 것 → 지출에서 뺌
+  const sent = partner ? entries.filter(e => e.payer === W && !isJoint(e) && !e.fixed_id && !e.canceled && e.amt > 0 && isPartnerName(e.place, nm(partner))) : [];
+  xferOff = new Set(matchXfers(sent.map(e => ({ key: e.id, d: e.d, amt: e.amt })), entries, partner).keys());
   // 중복 의심: 같은 사람·같은 날·같은 금액이 2건 이상 (취소 제외)
   dupIds = new Set();
   const seen = {};
@@ -307,8 +313,8 @@ function rowHtml(e){
   const payerChip = (fxName ? `<span class="chip fxchip">고정비 · ${esc(fxName)}</span>` : '') + (isJoint(e) ? `<span class="chip ${e.payer === me ? '' : 'gf'}">${esc(nm(e.payer))} 결제</span>` : '');
   return `<div class="it ${e.canceled ? 'canceled' : ''}" data-row="${e.id}">${dateBox(e.d)}
     <div><div class="p">${esc(e.place) || '<span style="color:var(--faint)">제목 없음</span>'}${e.memo ? '<span class="memo-dot" title="메모 있음"></span>' : ''}</div>
-      <div class="chips"><span class="chip ${e.cat === '미분류' ? 'warn' : ''}">${e.cat}</span>${payerChip}${isJoint(e) ? `<span class="chip ${e.split}">${SPLIT[e.split]}</span>` : ''}${e.split === 'half' && e.settled ? '<span class="chip">정산 끝</span>' : ''}${e.canceled ? '<span class="chip treat">취소됨</span>' : ''}${dupIds.has(e.id) ? '<span class="chip warn">중복?</span>' : ''}${e.amt < 0 ? '<span class="chip">환불</span>' : ''}</div></div>
-    <div class="a">${won(e.amt)}${isJoint(e) && e.split !== 'together' ? `<small>내 몫 ${won(mine)}</small>` : ''}${!isJoint(e) && isFood(e) && !e.canceled && e.payer === me ? `<br><button class="mini" data-half="${e.id}">같이</button>` : ''}</div>
+      <div class="chips"><span class="chip ${e.cat === '미분류' ? 'warn' : ''}">${e.cat}</span>${payerChip}${isJoint(e) ? `<span class="chip ${e.split}">${SPLIT[e.split]}</span>` : ''}${e.split === 'half' && e.settled ? '<span class="chip">정산 끝</span>' : ''}${e.canceled ? '<span class="chip treat">취소됨</span>' : ''}${dupIds.has(e.id) ? '<span class="chip warn">중복?</span>' : ''}${e.amt < 0 ? '<span class="chip">환불</span>' : ''}${xferOff.has(e.id) ? '<span class="chip">같이 쓴 몫 송금 · 지출 아님</span>' : ''}</div></div>
+    <div class="a">${won(e.amt)}${showShare(e) ? `<small>내 몫 ${won(mine)}</small>` : ''}${!isJoint(e) && !e.canceled && !e.fixed_id && !xferOff.has(e.id) && e.amt > 0 && e.payer === me ? `<br><button class="mini" data-half="${e.id}">같이</button>` : ''}</div>
   </div>`;
 }
 
@@ -408,7 +414,7 @@ function sheetHtml(){
     ${prop('나눔', opts('split', SPLIT_PICK.includes(o.split) ? SPLIT_PICK : [...SPLIT_PICK, o.split], o.split, k => SPLIT[k]))}
     ${joint && partner ? prop('결제', opts('payer', [me, partner], o.payer, k => nm(k))) : ''}
     ${o.split === 'half' ? prop('정산', opts('settled', [false, true], o.settled, v => v ? '끝남' : '아직')) : ''}
-    ${joint && o.split !== 'together' ? prop('내 몫', `<span style="font-weight:700;padding:0 8px">${won(share(o, me))}</span>`) : ''}
+    ${showShare(o) ? prop('내 몫', `<span style="font-weight:700;padding:0 8px">${won(share(o, me))}</span>`) : ''}
     ${prop('상태', opts('canceled', [false, true], !!o.canceled, v => v ? '취소됨' : '결제됨'))}
     ${o.payer === me ? prop('고정비', `<div class="opts">${[['', '아님'], ...fixed.map(f => [f.id, f.name || '제목 없음'])].map(([id, n]) => `<button data-link-fixed="${id}" class="${(o.fixed_id || '') === id ? 'on' : ''}">${esc(n)}</button>`).join('')}<button data-link-fixed="new" class="addfx">＋ 새 고정비로</button></div>`) : ''}
     ${o.fixed_id ? `<p class="hint">고정비 '${esc(fixed.find(f => f.id === o.fixed_id)?.name || '')}'로 계산돼요. 이 기록 금액은 지출에 따로 더하지 않아요.</p>` : ''}
@@ -591,7 +597,7 @@ function importHtml(){
   const on = P.missing.filter(m => m.on).length + P.fixedOut.filter(x => x.on).length + P.cancel.filter(x => x.on !== false).length + P.settle.length + P.salary.filter(x => x.on).length + P.extra.filter(x => x.on).length;
   const box = (k, i, checked) => `<input type="checkbox" class="ck" data-ck="${k}" data-i="${i}" ${checked ? 'checked' : ''}>`;
   return `${head}
-    <p class="sub" style="margin:-6px 0 6px">${esc(o.rangeText)} · 이미 있는 결제 ${P.matched.length}건${P.matched.filter(m => m.fill).length ? `(이름 채움 ${P.matched.filter(m => m.fill).length})` : ''} · 고정비로 알아본 ${P.fixedTaken}줄${P.dupBank.length ? ` · 간편결제와 겹친 ${P.dupBank.length}줄 뺌` : ''}${P.voided.length ? ` · 결제 후 취소된 ${P.voided.length / 2}건 뺌` : ''}</p>
+    <p class="sub" style="margin:-6px 0 6px">${esc(o.rangeText)} · 이미 있는 결제 ${P.matched.length}건${P.matched.filter(m => m.fill).length ? `(이름 채움 ${P.matched.filter(m => m.fill).length})` : ''} · 고정비로 알아본 ${P.fixedTaken}줄${P.dupBank.length ? ` · 간편결제와 겹친 ${P.dupBank.length}줄 뺌` : ''}${P.voided.length ? ` · 결제 후 취소된 ${P.voided.length / 2}건 뺌` : ''}${P.xfer.length ? ` · 같이 쓴 몫으로 ${nm(partner)}에게 보낸 ${P.xfer.length}건 뺌` : ''}</p>
     ${P.fixedOut.length ? `<div class="sh-sec">고정비로 나간 돈 ${P.fixedOut.length}건</div><div class="imp">${P.fixedOut.map((x, i) => `<label class="imp-row">${box('fixedOut', i, x.on)}${dateBox(x.paid_on)}<span class="p">${esc(x.f.name)} · ${md(x.cs).m}월 주기<small>${x.rows.map(r => esc(r.place)).filter((v, j, a) => a.indexOf(v) === j).join(', ')}${x.rows.length > 1 ? ` (${x.rows.length}번 합침)` : ''}${x.have != null ? ` · 지금 ${won(x.have)}` : ''}</small></span><b>${won(x.amt)}</b></label>`).join('')}</div>` : ''}
     ${P.cancel.length ? `<div class="sh-sec">취소·환불된 결제 ${P.cancel.length}건</div><div class="imp">${P.cancel.map((x, i) => `<label class="imp-row">${box('cancel', i, true)}${dateBox(x.e.d)}<span class="p">${esc(x.e.place) || '제목 없음'}<small>${x.b.d} 취소 → '취소됨'으로</small></span><b>${won(x.e.amt)}</b></label>`).join('')}</div>` : ''}
     <div class="sh-sec">앱에 없는 결제 ${P.missing.length}건</div>
@@ -692,7 +698,7 @@ document.addEventListener('click', async ev => {
   const hb = t.closest('[data-half]');
   if (hb){
     const o = entries.find(r => r.id === hb.dataset.half); if (!o) return;
-    o.split = 'together'; render(); toast(`'${o.place || '기록'}' 같이 먹은 기록으로 옮겼어요`);
+    o.split = 'together'; render(); toast(isFood(o) ? `'${o.place || '기록'}' 같이 먹은 기록으로 옮겼어요` : `'${o.place || '기록'}' 같이 쓴 기록으로 옮겼어요 · 둘이 반씩`);
     const { error } = await sb.from('gb_entries').update({ split: 'together' }).eq('id', o.id);
     if (error){ o.split = 'solo'; render(); toast('저장하지 못했어요'); }
     return;

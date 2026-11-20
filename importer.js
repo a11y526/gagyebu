@@ -7,6 +7,30 @@ const pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const serialToDate = s => { const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(+s) * 864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; };
 const dayGap = (a, b) => Math.abs(Math.round((new Date(a) - new Date(b)) / 864e5));
+const FOOD = ['장보기','외식','배달','카페·간식'];
+
+// 상대 이름이 들어간 내용인가 (전체 이름 또는 '남*진'처럼 가운데를 가린 것)
+const normName = t => String(t || '').replace(/\(주\)|주식회사|\s/g, '');
+export function isPartnerName(place, partnerName){
+  const q = normName(place), pnm = normName(partnerName);
+  return pnm.length >= 2 && (q.includes(pnm) || (q.length === 3 && q[1] === '*' && q[2] === pnm.at(-1) && (pnm.length < 3 || q[0] === pnm[0])));
+}
+// 상대에게 보낸 돈 중 '상대가 결제한 같이 쓴 것(식비 말고)'의 내 몫(절반)을 갚은 것 찾기
+// 금액이 딱 안 맞아도 되고(반올림 등), 그날 것을 한 번에 보내도 됨: 보낸 날 포함 3일 전까지의 같이 쓴 것 몫을 차례로 갚아 나감
+// transfers: [{key, d, amt(보낸 금액, 양수)}] → Map(key → 갚은 기록들)
+export function matchXfers(transfers, entries, partner){
+  const owe = new Map(entries.filter(e => e.payer === partner && e.split === 'together' && !FOOD.includes(e.cat) && !e.canceled && e.amt > 0).map(e => [e, e.amt / 2]));
+  const out = new Map();
+  for (const t of [...transfers].sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0)){
+    const c = [...owe.keys()].filter(e => owe.get(e) > 0 && e.d <= t.d && dayGap(e.d, t.d) <= 3).sort((a, b) => a.d < b.d ? -1 : 1);
+    const left = c.reduce((s, e) => s + owe.get(e), 0);
+    if (!c.length || t.amt > left * 1.2 + 1000) continue;
+    let r = t.amt;
+    for (const e of c){ const x = Math.min(r, owe.get(e)); owe.set(e, owe.get(e) - x); r -= x; }
+    out.set(t.key, c);
+  }
+  return out;
+}
 
 // 파일 → xlsx 바이트
 async function xlsxBytes(file, password){
@@ -133,6 +157,10 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
   // 1) 결제: 앱에 없는 것 찾기 (같은 금액, 날짜 ±3일). 취소된 앱 기록도 짝으로 침
   const used = new Set();
   const mine = entries.filter(e => e.payer === me);
+  // 상대에게 보낸 돈: 같이 쓴 것 내 몫이면 지출 아님(xfer), 아니면 체크 없이 보여 줌
+  const toPartner = pays.filter(b => b.amt < 0 && !voided.includes(b) && isPartnerName(b.place, partnerName));
+  const xmap = matchXfers(toPartner.map(b => ({ key: b, d: b.d, amt: -b.amt })), entries, partner);
+  const xfer = [];
   const missing = [], matched = [], cancel = [];
   for (const b of voided.filter(x => x.amt < 0)){
     // 엑셀에선 취소된 결제인데 앱엔 '결제됨'으로 남아 있으면 → 취소 표시 후보
@@ -143,6 +171,11 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
     const amt = -b.amt;   // 결제는 음수 → 앱 금액(양수), 환불은 음수로
     const hit = mine.find(e => !used.has(e.id) && e.amt === amt && dayGap(e.d, b.d) <= 3);
     if (hit){ used.add(hit.id); matched.push({ b, e: hit, fill: !hit.place && b.place ? b.place.slice(0, 80) : null }); continue; }
+    if (toPartner.includes(b)){
+      if (xmap.has(b)) xfer.push({ b, items: xmap.get(b) });
+      else missing.push({ b, amt, cat: mapCat(b.big, b.small), on: false, note: '상대에게 보낸 돈' });
+      continue;
+    }
     const cat = mapCat(b.big, b.small);
     const fx = fixed.find(f => Math.abs(f.amt - amt) <= Math.max(500, f.amt * .1) && ['주거','통신','공과금','구독','교통'].includes(cat));
     if (amt < 0){
@@ -188,8 +221,7 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
   };
   const EXAM = learn('시험 감독'), BOGANG = learn('보강비');
   // 상대 이름(전체 또는 '남*진'처럼 가운데를 가린 것)
-  const pnm = norm(partnerName || '');
-  const isPartner = place => { const q = norm(place); return pnm.length >= 2 && (q.includes(pnm) || (q.length === 3 && q[1] === '*' && q[2] === pnm.at(-1) && (pnm.length < 3 || q[0] === pnm[0]))); };
+  const isPartner = place => isPartnerName(place, partnerName);
   for (const b of bank.filter(b => (b.type === '수입' || b.type === '이체') && b.amt > 0 && inRange(b))){
     if ((extras || []).some(x => x.amt === b.amt && dayGap(x.d, b.d) <= 3)) continue;
     const p = norm(b.place);
@@ -212,5 +244,5 @@ export function plan({ bank, entries, me, partner, partnerName, fixed, fixedPaid
   }
   // 5) 엑셀 기간 안인데 엑셀에 짝이 없는 내 앱 기록 (현금·잘못 들어간 것 확인용)
   const orphan = mine.filter(e => !used.has(e.id) && !e.canceled && !e.fixed_id && e.d >= from && e.d <= to);
-  return { missing, matched, settle, loose, salary, extra, cancel, dupBank, voided, fixedOut: fixedOut.filter(g => g.amt > 0), fixedTaken: taken.size, orphan };
+  return { missing, matched, settle, loose, salary, extra, cancel, dupBank, voided, fixedOut: fixedOut.filter(g => g.amt > 0), fixedTaken: taken.size, orphan, xfer };
 }
