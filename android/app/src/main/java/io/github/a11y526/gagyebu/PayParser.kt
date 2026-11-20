@@ -12,6 +12,9 @@ object PayParser {
     fun accepts(pkg: String): Boolean = cardApps.any { pkg.contains(it) } || smsApps.any { pkg.contains(it) }
     fun isSms(pkg: String): Boolean = smsApps.any { pkg.contains(it) } && cardApps.none { pkg.contains(it) }
 
+    private val notPay = listOf("광고", "혜택", "미션", "이벤트", "프로모션", "출금일", "연회비", "실 결제", "실결제",
+        "결제금액 안내", "입금", "환급", "캐시백")
+
     private val amountRe = Regex("""(?:₩\s*(\d{1,3}(?:,\d{3})+|\d+))|(?:(\d{1,3}(?:,\d{3})+|\d+)\s*원)""")
     private val timeRe = Regex("""\d{1,2}:\d{2}""")
 
@@ -21,6 +24,8 @@ object PayParser {
         if (isSms(pkg) && !t.contains("카드")) return null
         if (!(t.contains("승인") || t.contains("결제") || t.contains("사용"))) return null
         if (listOf("거절", "실패", "한도", "예정", "청구", "명세서", "출금예정").any { t.contains(it) }) return null
+        // 결제가 아닌 것: 광고·혜택·이벤트, 결제일(실 결제액) 안내, 들어온 돈
+        if (notPay.any { t.contains(it) } || Regex("""결제\s*일(?!시)""").containsMatchIn(t)) return null
         val cancel = t.contains("취소")
         // 금액: '누적'·'잔액' 바로 뒤 숫자는 건너뜀
         val amt = amountRe.findAll(t).firstOrNull { m ->
@@ -30,15 +35,17 @@ object PayParser {
         if (amt <= 0) return null
         // 가게: 시각(12:30) 뒤 글자 → '누적'·'잔액' 앞까지
         var place = ""
-        timeRe.findAll(t).lastOrNull()?.let { m ->
+        // '가맹점명 : 가게 이용일시 : …' 꼴
+        Regex("""가맹점명?\s*:\s*(.+?)(?:\s*(?:이용일시|이용일|승인일시|일시|금액|누적|잔액)\s*:|$)""").find(t)?.let { place = it.groupValues[1] }
+        if (place.isEmpty()) timeRe.findAll(t).lastOrNull()?.let { m ->
             place = t.substring(m.range.last + 1).split("누적", "잔액", "[", "(누적").first().trim()
         }
         if (place.isEmpty()) {
             // 시각이 없으면 금액 뒤 글자에서 할부 표시 빼고
             val m = amountRe.find(t)
-            if (m != null) place = t.substring(m.range.last + 1).replace(Regex("""일시불|할부\s*\d*개월|승인|취소|결제|사용"""), "").split("누적", "잔액").first().trim()
+            if (m != null) place = t.substring(m.range.last + 1).replace(Regex("""일시불|할부\s*\d*개월|(승인|취소|결제|사용)\s*(완료|됨|되었습니다)?"""), "").split("누적", "잔액").first().trim()
         }
-        place = place.replace(Regex("""^[\s·:,-]+"""), "").replace(Regex("""(결제|승인)\s*(완료|됨|되었습니다)?\.?$"""), "").trim()
+        place = place.replace(Regex("""^(?:[\s·:,-]|\(\))+"""), "").replace(Regex("""^(완료|승인|결제)\s+"""), "").replace(Regex("""(결제|승인)\s*(완료|됨|되었습니다)?\.?$"""), "").trim()
         // 그래도 없으면 제목 (금액·흔한 말이 아닐 때)
         if (place.isEmpty() && title.isNotBlank() && !amountRe.containsMatchIn(title) && generic.none { title.trim() == it || title.trim().startsWith(it) }) place = title.trim()
         place = place.take(40)

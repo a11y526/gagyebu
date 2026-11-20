@@ -19,11 +19,11 @@ class PayListener : NotificationListenerService() {
             .mapNotNull { ex.getCharSequence(it)?.toString() }.distinct().joinToString(" ")
         if (raw.isBlank()) return
         val pay = PayParser.parse(pkg, raw, ex.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "") ?: return
-        // 같은 알림이 다시 올라오면 한 번만 (10분)
-        val sig = "$pkg|${pay.amt}|${pay.cancel}|${pay.place}"
+        // 같은 결제가 다시 오면 한 번만: 카드 앱 알림과 문자가 같이 와도 (금액이 같으면 2분 안은 한 번)
+        val sig = "${pay.amt}|${pay.cancel}"
         val prefs = getSharedPreferences("gb", MODE_PRIVATE)
         val now = System.currentTimeMillis()
-        if (prefs.getString("last_sig", "") == sig && now - prefs.getLong("last_at", 0) < 600_000) return
+        if (prefs.getString("last_sig", "") == sig && now - prefs.getLong("last_at", 0) < 120_000) return
         prefs.edit().putString("last_sig", sig).putLong("last_at", now).apply()
 
         val key = Api.key(this)
