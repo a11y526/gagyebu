@@ -76,6 +76,7 @@ const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
 const man = n => { const v = n / 10000; return (Math.abs(v) >= 100 ? Math.round(v) : Number.isInteger(v) ? v : v.toFixed(1)) + '만 원'; };
 const isFood = e => FOOD.includes(e.cat);
 const isJoint = e => e.split !== 'solo';
+const halfOther = e => e.split === 'together' && !isFood(e);   // 식비 말고 같이 쓴 것: '같이' 탭이 아니라 각자 '혼자' 목록에 내 몫으로
 const showShare = e => isJoint(e) && (e.split !== 'together' || !isFood(e));   // '내 몫'을 따로 보여 줄 기록
 function share(e, who){
   if (e.canceled || e.fixed_id || xferOff.has(e.id)) return 0;   // 고정비로 연결된 기록은 고정비 쪽에서만 셈
@@ -219,7 +220,7 @@ function render(){
     : net >= 0 ? `<span>${esc(nm(O))}${josa(nm(O), '이', '가')} 보낼 돈</span><b>${won(net)}</b>` : `<span>내가 보낼 돈</span><b>${won(-net)}</b>`;
 
   // ── 같이: 같이 먹은 기록
-  const joint = rows.filter(isJoint).reverse();
+  const joint = rows.filter(e => isJoint(e) && !halfOther(e)).reverse();
   $('joint').innerHTML = joint.length ? joint.map(rowHtml).join('') : '<div class="none">기록 없음</div>';
 
   // ── 나만: 도넛
@@ -301,7 +302,7 @@ function render(){
   $('cal').innerHTML = cal;
 
   // ── 나만: 혼자 쓴 기록
-  const solo = rows.filter(e => !e.fixed && e.payer === W && !isJoint(e)).reverse();
+  const solo = rows.filter(e => !e.fixed && ((e.payer === W && !isJoint(e)) || halfOther(e))).reverse();
   $('soloCount').textContent = `${solo.length}건`;
   $('list').innerHTML = solo.length ? solo.slice(0, soloShown).map(rowHtml).join('') : '<div class="none">기록 없음</div>';
   $('soloMore').hidden = solo.length <= soloShown;
@@ -314,7 +315,7 @@ function rowHtml(e){
   return `<div class="it ${e.canceled ? 'canceled' : ''}" data-row="${e.id}">${dateBox(e.d)}
     <div><div class="p">${esc(e.place) || '<span style="color:var(--faint)">제목 없음</span>'}${e.memo ? '<span class="memo-dot" title="메모 있음"></span>' : ''}</div>
       <div class="chips"><span class="chip ${e.cat === '미분류' ? 'warn' : ''}">${e.cat}</span>${payerChip}${isJoint(e) ? `<span class="chip ${e.split}">${SPLIT[e.split]}</span>` : ''}${e.split === 'half' && e.settled ? '<span class="chip">정산 끝</span>' : ''}${e.canceled ? '<span class="chip treat">취소됨</span>' : ''}${dupIds.has(e.id) ? '<span class="chip warn">중복?</span>' : ''}${e.amt < 0 ? '<span class="chip">환불</span>' : ''}${xferOff.has(e.id) ? '<span class="chip">같이 쓴 몫 송금 · 지출 아님</span>' : ''}</div></div>
-    <div class="a">${won(e.amt)}${showShare(e) ? `<small>내 몫 ${won(mine)}</small>` : ''}${!isJoint(e) && !e.canceled && !e.fixed_id && !xferOff.has(e.id) && e.amt > 0 && e.payer === me ? `<br><button class="mini" data-half="${e.id}">같이</button>` : ''}</div>
+    <div class="a">${showShare(e) ? `${won(mine)}<small>전체 ${won(e.amt)}</small>` : won(e.amt)}${!isJoint(e) && !e.canceled && !e.fixed_id && !xferOff.has(e.id) && e.amt > 0 && e.payer === me ? `<br><button class="mini" data-half="${e.id}">같이</button>` : ''}</div>
   </div>`;
 }
 
@@ -698,7 +699,7 @@ document.addEventListener('click', async ev => {
   const hb = t.closest('[data-half]');
   if (hb){
     const o = entries.find(r => r.id === hb.dataset.half); if (!o) return;
-    o.split = 'together'; render(); toast(isFood(o) ? `'${o.place || '기록'}' 같이 먹은 기록으로 옮겼어요` : `'${o.place || '기록'}' 같이 쓴 기록으로 옮겼어요 · 둘이 반씩`);
+    o.split = 'together'; render(); toast(isFood(o) ? `'${o.place || '기록'}' 같이 먹은 기록으로 옮겼어요` : `'${o.place || '기록'}' 둘이 반씩 나눴어요`);
     const { error } = await sb.from('gb_entries').update({ split: 'together' }).eq('id', o.id);
     if (error){ o.split = 'solo'; render(); toast('저장하지 못했어요'); }
     return;
